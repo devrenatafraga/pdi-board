@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDI Board 🎲</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/board.css" />
+  <link rel="stylesheet" href="css/scoreboard.css" />
+</head>
+<body>
+
+  <!-- SETUP WIZARD (shown on first access) -->
+  <div id="setup-overlay" class="hidden">
+    <div class="setup-modal">
+      <div id="setup-content"></div>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="app" class="hidden">
+
+    <!-- NAV -->
+    <nav class="nav">
+      <div class="nav-brand">🎲 PDI Board</div>
+      <ul class="nav-tabs">
+        <li><button class="nav-btn active" data-frame="instructions">📋 Regras</button></li>
+        <li><button class="nav-btn" data-frame="board-0">🟦 Tema 1</button></li>
+        <li><button class="nav-btn" data-frame="board-1">🟩 Tema 2</button></li>
+        <li><button class="nav-btn" data-frame="board-2">🟧 Tema 3</button></li>
+        <li><button class="nav-btn" data-frame="scoreboard">🏆 Placar</button></li>
+        <li><button class="nav-btn" data-frame="evidence">📌 Evidências</button></li>
+      </ul>
+      <button class="btn btn-ghost btn-sm" id="btn-reset-config" title="Reconfigurar">⚙️</button>
+    </nav>
+
+    <!-- FRAMES -->
+    <main class="main">
+
+      <!-- FRAME 1: INSTRUCTIONS -->
+      <section id="frame-instructions" class="frame active">
+        <div id="instructions-content"></div>
+      </section>
+
+      <!-- FRAME 2-4: BOARDS -->
+      <section id="frame-board-0" class="frame">
+        <div class="board-wrapper" id="board-0"></div>
+      </section>
+      <section id="frame-board-1" class="frame">
+        <div class="board-wrapper" id="board-1"></div>
+      </section>
+      <section id="frame-board-2" class="frame">
+        <div class="board-wrapper" id="board-2"></div>
+      </section>
+
+      <!-- FRAME 5: SCOREBOARD -->
+      <section id="frame-scoreboard" class="frame">
+        <div id="scoreboard-content"></div>
+      </section>
+
+      <!-- FRAME 6: EVIDENCE -->
+      <section id="frame-evidence" class="frame">
+        <div id="evidence-content"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL CHECKPOINT -->
+  <div id="checkpoint-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <button class="modal-close" id="close-checkpoint-modal">✕</button>
+      <div id="checkpoint-modal-content"></div>
+    </div>
+  </div>
+
+  <!-- MODAL 1:1 -->
+  <div id="oneOnOne-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <button class="modal-close" id="close-oneOnOne-modal">✕</button>
+      <div id="oneOnOne-modal-content"></div>
+    </div>
+  </div>
+
+  <!-- MODAL EVIDENCE -->
+  <div id="evidence-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <button class="modal-close" id="close-evidence-modal">✕</button>
+      <div id="evidence-modal-content"></div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/setup.js"></script>
+  <script src="js/board.js"></script>
+  <script src="js/token.js"></script>
+  <script src="js/scoreboard.js"></script>
+  <script src="js/evidence.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
