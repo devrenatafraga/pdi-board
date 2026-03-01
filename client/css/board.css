@@ -36,50 +36,99 @@
 }
 
 /* ============================================================
-   TRILHA (TRACK)
+   TRILHA (TRACK) — fundo estilo tabuleiro
    ============================================================ */
 .board-track {
   display: flex;
   flex-direction: column;
   gap: 0;
   position: relative;
+  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-color: var(--surface);
+  padding: 28px 20px 20px;
+  border-radius: var(--radius);
+  border: 2px solid var(--border);
 }
 
 /* Linha do mês */
 .month-row {
   display: flex;
   flex-direction: column;
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 .month-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   padding-left: 4px;
+  opacity: 0.7;
 }
 
 /* Casas do mês */
 .month-squares {
   display: flex;
-  align-items: stretch;
-  gap: 0;
+  align-items: flex-start;
+  gap: 8px;
   position: relative;
+  padding-bottom: 4px;
 }
 
-/* Conectores entre casas */
+/* Trilha horizontal — linha contínua no centro dos ícones */
+/* Centro: margin-top(16) + altura-icone/2(40) = 56px */
 .month-squares::before {
   content: '';
   position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--border);
-  transform: translateY(-50%);
+  top: 56px;
+  left: 8px;
+  right: 8px;
+  height: 8px;
+  background: var(--theme-color, var(--border));
+  opacity: 0.3;
   z-index: 0;
+  border-radius: 4px;
+}
+
+/* Serpentine: reversed direction */
+.month-squares-reversed {
+  flex-direction: row-reverse;
+}
+
+/* ============================================================
+   CONECTOR DE VIRADA — barra lateral conectando linhas de meses
+   ============================================================
+   Cálculo: path center no .month-row = label(24px) + margin-top-icon(16px) + icon-center(40px) = 80px
+   Distância path → fundo do .month-row ≈ 152 - 80 = 72px
+   top do ::before: -72px (sobe até a linha acima)
+   height: 72 + 44 + 80 = 196px (72 acima + conector + 80 da linha abaixo)
+   ============================================================ */
+.month-connector {
+  position: relative;
+  height: 44px;
+}
+
+.month-connector::before {
+  content: '';
+  position: absolute;
+  width: 8px;
+  top: -72px;
+  height: 196px;
+  background: var(--theme-color, var(--border));
+  opacity: 0.35;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.month-connector.connector-right::before {
+  right: 12px;
+}
+
+.month-connector.connector-left::before {
+  left: 12px;
 }
 
 /* ============================================================
@@ -95,47 +144,73 @@
   text-align: center;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s;
+  min-width: 88px;
 }
-.square:hover { transform: translateY(-4px); }
+.square:hover { transform: translateY(-5px); }
+
+/* Número da posição */
+.square-pos {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 6px;
+  z-index: 5;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
 
 .square-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
+  width: 80px;
+  height: 80px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 26px;
   border: 3px solid transparent;
-  background: var(--surface);
-  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  background: var(--surface-2);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.04) inset;
   position: relative;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
   margin-bottom: 8px;
+  margin-top: 16px;
 }
 
-/* Casas coloridas por tema */
+/* Casas coloridas por estado */
 .square.status-planned  .square-icon { border-color: var(--border); }
-.square.status-progress .square-icon { box-shadow: 0 0 0 3px var(--warning), 0 2px 12px rgba(0,0,0,0.3); }
-.square.status-done     .square-icon { box-shadow: 0 0 0 3px var(--success), 0 2px 12px rgba(0,0,0,0.3); }
+.square.status-progress .square-icon { box-shadow: 0 0 0 3px var(--warning), 0 4px 14px rgba(0,0,0,0.4); }
+.square.status-done     .square-icon { box-shadow: 0 0 0 3px var(--success), 0 4px 14px rgba(0,0,0,0.4); }
 
 /* Casas especiais */
 .square.type-start .square-icon { background: var(--surface-2); border-color: var(--border); cursor: default; }
 .square.type-milestone .square-icon { border-width: 3px; }
-.square.type-bonus .square-icon { background: #1a2b40; }
-.square.type-setback .square-icon { background: #2e1010; }
+.square.type-bonus .square-icon { background: #1a2b40; border-color: #2a4a70; }
+.square.type-setback .square-icon { background: #2e1010; border-color: #5a2020; }
 
-/* Theme color accent via inline style */
-.square.type-milestone .square-icon,
-.square.type-normal.status-done .square-icon {
-  /* override via JS with --theme-color */
+/* MILESTONE — glow animado */
+@keyframes milestone-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(245,158,11,0.3), 0 4px 14px rgba(0,0,0,0.4); }
+  50%       { box-shadow: 0 0 28px rgba(245,158,11,0.7), 0 4px 14px rgba(0,0,0,0.4); }
+}
+.square.type-milestone .square-icon {
+  animation: milestone-glow 2.5s ease-in-out infinite;
+}
+.square.type-milestone.status-done .square-icon {
+  animation: none;
 }
 
 .square-label {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
-  max-width: 84px;
+  max-width: 88px;
   line-height: 1.3;
 }
 .square-points {
@@ -149,25 +224,36 @@
 /* START label */
 .square.type-start .square-label { color: var(--text-muted); }
 
-/* MILESTONE glow */
+/* Hover glow para milestone */
 .square.type-milestone:hover .square-icon {
-  box-shadow: 0 0 20px rgba(255, 210, 50, 0.5);
+  box-shadow: 0 0 32px rgba(255, 210, 50, 0.6), 0 4px 14px rgba(0,0,0,0.4);
 }
 
 /* ============================================================
-   TOKEN (PEÃO)
+   TOKEN (PEÃO) — animação de pulsação
    ============================================================ */
+@keyframes token-pulse {
+  0%, 100% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.2);
+    box-shadow: 0 4px 18px rgba(124,131,245,0.65);
+  }
+}
+
 .token {
   position: absolute;
-  top: -10px;
+  top: -14px;
   left: 50%;
   transform: translateX(-50%);
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: #fff;
   border: 2px solid var(--accent);
-  font-size: 14px;
+  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -175,27 +261,12 @@
   cursor: grab;
   user-select: none;
   box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-  transition: box-shadow 0.2s;
+  animation: token-pulse 2s ease-in-out infinite;
 }
-.token:active { cursor: grabbing; box-shadow: 0 4px 16px rgba(0,0,0,0.7); }
-
-/* ============================================================
-   SEPARADOR MESES
-   ============================================================ */
-.month-separator {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 4px 0 16px;
-  color: var(--border);
-  font-size: 11px;
-}
-.month-separator::before,
-.month-separator::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border);
+.token:active {
+  cursor: grabbing;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.7);
+  animation: none;
 }
 
 /* ============================================================
@@ -245,6 +316,130 @@
 .stat-card .stat-value { font-size: 24px; font-weight: 800; margin-top: 2px; }
 
 /* ============================================================
+   LINHA DE PROGRESSO
+   ============================================================ */
+.progress-line-wrap {
+  margin-bottom: 24px;
+}
+.progress-line {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+}
+.progress-line-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.progress-line-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.progress-status {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+.progress-status.status-ok      { background: #0d2e1a; color: var(--success); }
+.progress-status.status-warning { background: #3b2e00; color: var(--warning); }
+.progress-status.status-danger  { background: #2e1010; color: var(--danger); }
+.progress-track {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  position: relative;
+}
+/* Linha de fundo da trilha */
+.progress-track::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 16px; /* center of dot */
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  z-index: 0;
+}
+/* Linha de progresso colorida */
+.progress-track::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  height: 4px;
+  width: var(--progress-width, 0%);
+  background: var(--theme-color);
+  border-radius: 2px;
+  z-index: 0;
+  transition: width 0.5s ease;
+}
+.progress-dot-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+.progress-rocket {
+  font-size: 18px;
+  line-height: 1;
+  margin-bottom: 2px;
+  animation: rocket-bounce 1s ease-in-out infinite alternate;
+}
+@keyframes rocket-bounce {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-4px); }
+}
+.progress-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 3px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  position: relative;
+  transition: all 0.3s;
+}
+.progress-dot.done {
+  background: var(--theme-color);
+  border-color: var(--theme-color);
+  color: #fff;
+}
+.progress-dot.overdue {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px rgba(239,68,68,0.3);
+}
+.progress-dot.current {
+  border-color: var(--theme-color);
+  box-shadow: 0 0 0 3px rgba(var(--theme-color-rgb), 0.3);
+}
+.progress-warn-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 12px;
+  line-height: 1;
+}
+.progress-dot-num {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ============================================================
    MODAL CHECKPOINT ESTILOS EXTRAS
    ============================================================ */
 .cp-modal-header {
@@ -287,3 +482,55 @@
   margin-top: 24px;
   justify-content: flex-end;
 }
+
+/* ============================================================
+   AUTO SCORE — caixa de pontuação automática no modal
+   ============================================================ */
+.auto-score-box {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.auto-score-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  flex: 1 0 100%;
+}
+.auto-score-value {
+  font-size: 26px;
+  font-weight: 800;
+}
+.auto-score-breakdown {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: 1;
+}
+.auto-score-breakdown b { color: var(--text); }
+.pts-muted { color: var(--text-muted); font-size: 11px; }
+
+/* ============================================================
+   LINKS / EVIDÊNCIAS no modal
+   ============================================================ */
+.link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.link-row .cp-link-input { flex: 1; }
+.cp-link-remove {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+

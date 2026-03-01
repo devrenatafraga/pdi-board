@@ -11,17 +11,26 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["**/__tests__/**/*.test.js"],
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ],
     "collectCoverageFrom": [
       "server/**/*.js",
       "!server/index.js"
     ],
-    "coverageReporters": ["lcov", "text", "clover"],
+    "coverageReporters": [
+      "lcov",
+      "text",
+      "clover"
+    ],
     "coverageDirectory": "coverage"
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.18.2"
+    "docx": "^9.6.0",
+    "exceljs": "^4.4.0",
+    "express": "^4.18.2",
+    "pdfkit": "^0.17.2"
   },
   "devDependencies": {
     "jest": "^30.2.0",
