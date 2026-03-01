@@ -59,28 +59,28 @@ const App = (() => {
 
     const totalCheckpoints = 3 * 8;
     el.innerHTML = `
-      <div style="max-width:800px">
-        <h2 style="font-size:24px;margin-bottom:8px">📋 ${config.title || 'PDI Board'}</h2>
-        <p class="text-muted" style="margin-bottom:32px">Plano de Desenvolvimento Individual · Início: ${formatDate(config.startDate)}</p>
+      <div class="instructions-wrapper">
+        <h2 class="instructions-title">📋 ${config.title || 'PDI Board'}</h2>
+        <p class="text-muted instructions-subtitle">Plano de Desenvolvimento Individual · Início: ${formatDate(config.startDate)}</p>
 
-        <div class="card" style="margin-bottom:20px">
+        <div class="card instructions-card">
           <div class="card-title">🗺️ Como funciona o Board</div>
-          <ul style="color:var(--text-muted);font-size:14px;line-height:2;padding-left:18px">
-            <li>O PDI está dividido em <strong style="color:var(--text)">3 temas</strong>, cada um com <strong style="color:var(--text)">4 meses</strong> de duração</li>
-            <li>Cada tema possui <strong style="color:var(--text)">8 checkpoints</strong> (2 por mês), registrados nas reuniões quinzenais de 1:1</li>
-            <li>Total: <strong style="color:var(--text)">${totalCheckpoints} checkpoints</strong> ao longo do período</li>
+          <ul class="instructions-list">
+            <li>O PDI está dividido em <strong>3 temas</strong>, cada um com <strong>4 meses</strong> de duração</li>
+            <li>Cada tema possui <strong>8 checkpoints</strong> (2 por mês), registrados nas reuniões quinzenais de 1:1</li>
+            <li>Total: <strong>${totalCheckpoints} checkpoints</strong> ao longo do período</li>
             <li>Arraste o peão 🎯 pelas casas conforme avança nos checkpoints</li>
             <li>Clique em qualquer casa para atualizar status, pontos e notas</li>
           </ul>
         </div>
 
-        <div class="card" style="margin-bottom:20px">
+        <div class="card instructions-card">
           <div class="card-title">🎨 Trilhas do Tabuleiro</div>
           <div class="legend-grid">
             ${config.themes.map((t, i) => `
               <div class="legend-item">
                 <div class="legend-icon">
-                  <span style="display:block;width:32px;height:32px;border-radius:50%;background:${t.color};margin:auto"></span>
+                  <span class="theme-dot-lg" style="background:${t.color}"></span>
                 </div>
                 <div class="legend-text">
                   <strong>${t.name}</strong>
@@ -90,7 +90,7 @@ const App = (() => {
           </div>
         </div>
 
-        <div class="card" style="margin-bottom:20px">
+        <div class="card instructions-card">
           <div class="card-title">🏠 Tipos de Casas</div>
           <div class="legend-grid">
             <div class="legend-item">
@@ -116,24 +116,27 @@ const App = (() => {
           </div>
         </div>
 
-        <div class="card" style="margin-bottom:20px">
+        <div class="card instructions-card">
           <div class="card-title">🔄 Dinâmica dos 1:1s (quinzenal)</div>
-          <ol style="color:var(--text-muted);font-size:14px;line-height:2.2;padding-left:18px">
-            <li><strong style="color:var(--text)">Antes:</strong> Revise o board e prepare os pontos do checkpoint</li>
-            <li><strong style="color:var(--text)">Durante:</strong> Abra o tema foco, mova o peão, atualize pontos e notas</li>
-            <li><strong style="color:var(--text)">Após:</strong> Registre o 1:1 no Placar e adicione evidências relevantes</li>
+          <ol class="instructions-ol">
+            <li><strong>Antes:</strong> Revise o board e prepare os pontos do checkpoint</li>
+            <li><strong>Durante:</strong> Abra o tema foco, mova o peão, atualize pontos e notas</li>
+            <li><strong>Após:</strong> Registre o 1:1 no Placar e adicione evidências relevantes</li>
           </ol>
         </div>
 
         <div class="card">
-          <div class="card-title">⭐ Sistema de Pontuação (sugestão)</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
-            <div style="font-size:13px;color:var(--text-muted)">✅ Checkpoint concluído: <strong style="color:var(--success)">+10 pts</strong></div>
-            <div style="font-size:13px;color:var(--text-muted)">🎁 Casa Bônus: <strong style="color:#60b0ff">+15 pts</strong></div>
-            <div style="font-size:13px;color:var(--text-muted)">🏆 Milestone: <strong style="color:var(--warning)">+25 pts</strong></div>
-            <div style="font-size:13px;color:var(--text-muted)">⚠️ Retrocesso: <strong style="color:var(--danger)">-5 pts</strong></div>
+          <div class="card-title">⭐ Pontuação Automática</div>
+          <div class="scoring-grid">
+            <div class="scoring-item">⬜ Checkpoint concluído: <strong class="score-success">+10 pts</strong></div>
+            <div class="scoring-item">🎁 Casa Bônus concluída: <strong class="score-bonus">+15 pts</strong></div>
+            <div class="scoring-item">🏆 Milestone concluído: <strong class="score-warning">+25 pts</strong></div>
+            <div class="scoring-item">⚠️ Retrocesso concluído: <strong class="score-danger">-5 pts</strong></div>
+            <div class="scoring-item">🔄 Em progresso: <strong class="score-warning">metade da base</strong></div>
+            <div class="scoring-item">📝 Notas preenchidas: <strong class="score-success">+2 pts</strong></div>
+            <div class="scoring-item">🔗 Links de evidência: <strong class="score-bonus">+3 pts cada</strong> (máx. 3)</div>
           </div>
-          <p class="text-muted text-sm mt-2">Adapte os valores com seu gestor na primeira reunião!</p>
+          <p class="text-muted text-sm mt-2">Os pontos são calculados automaticamente ao salvar cada checkpoint!</p>
         </div>
       </div>`;
   }

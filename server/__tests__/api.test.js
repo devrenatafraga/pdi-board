@@ -145,6 +145,45 @@ describe('PUT /api/checkpoints/:themeId/:id', () => {
     expect(cp.notes).toBe('Em andamento');
   });
 
+  it('salva links de evidência no checkpoint', async () => {
+    const links = ['https://github.com/org/repo/pull/1', 'https://notion.so/nota-do-11'];
+    const res = await request(app)
+      .put('/api/checkpoints/theme-0/cp-0-1')
+      .send({ status: 'done', points: 15, notes: 'Concluído com evidências', links });
+    expect(res.status).toBe(200);
+    expect(res.body.checkpoint.links).toEqual(links);
+
+    const data = JSON.parse(fs.readFileSync(tmpFile));
+    expect(data.config.themes[0].checkpoints[0].links).toEqual(links);
+  });
+
+  it('salva pontos auto-calculados enviados pelo cliente', async () => {
+    // cliente calcula: done + notas + 2 links = 10 + 2 + 6 = 18pts
+    const res = await request(app)
+      .put('/api/checkpoints/theme-0/cp-0-1')
+      .send({ status: 'done', points: 18, notes: 'Notas preenchidas', links: ['https://a.com', 'https://b.com'] });
+    expect(res.status).toBe(200);
+    expect(res.body.checkpoint.points).toBe(18);
+  });
+
+  it('salva pontos de bônus com links (done + notas + 3 links = 15+2+9 = 26)', async () => {
+    const links = ['https://x.com', 'https://y.com', 'https://z.com'];
+    const res = await request(app)
+      .put('/api/checkpoints/theme-0/cp-0-2') // cp-0-2 é tipo 'bonus'
+      .send({ status: 'done', points: 26, notes: 'Entrega excepcional', links });
+    expect(res.status).toBe(200);
+    expect(res.body.checkpoint.points).toBe(26);
+    expect(res.body.checkpoint.links).toHaveLength(3);
+  });
+
+  it('aceita checkpoint sem links (campo opcional)', async () => {
+    const res = await request(app)
+      .put('/api/checkpoints/theme-0/cp-0-1')
+      .send({ status: 'done', points: 10, notes: '' });
+    expect(res.status).toBe(200);
+    expect(res.body.checkpoint.links).toBeUndefined();
+  });
+
   it('retorna 400 quando não há configuração', async () => {
     fs.writeFileSync(tmpFile, JSON.stringify({ config: null, oneOnOnes: [], evidence: [] }));
     const res = await request(app).put('/api/checkpoints/theme-0/cp-0-1').send({ status: 'done' });

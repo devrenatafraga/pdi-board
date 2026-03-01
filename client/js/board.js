@@ -16,6 +16,27 @@ const Board = (() => {
     milestone: 'Milestone 🏆',
   };
 
+  // Pontos base por tipo de casa (status = done)
+  const BASE_POINTS = { normal: 10, bonus: 15, milestone: 25, setback: -5, start: 0 };
+
+  // Calcula pontos automaticamente com base no preenchimento
+  function calcPoints(type, status, notes, links) {
+    const base = BASE_POINTS[type] ?? 0;
+    if (status === 'planned') return 0;
+
+    const linkCount = Math.min((links || []).filter(l => l.trim()).length, 3);
+    const hasNotes = (notes || '').trim().length > 0;
+
+    if (status === 'in-progress') {
+      // metade do base, sem bônus de qualidade ainda
+      return Math.max(0, Math.round(base / 2));
+    }
+
+    // done
+    if (type === 'setback') return base; // sempre -5 se concluído
+    return base + (hasNotes ? 2 : 0) + linkCount * 3;
+  }
+
   function renderBoard(themeIndex, config) {
     const theme = config.themes[themeIndex];
     const container = document.getElementById(`board-${themeIndex}`);
@@ -63,11 +84,9 @@ const Board = (() => {
   }
 
   function renderTrack(theme, themeIndex) {
-    // Build full squares array: Start + 8 checkpoints + milestone (already in checkpoints as last)
     const startSquare = { id: `start-${themeIndex}`, type: 'start', title: 'Start', status: 'done', points: 0 };
-    const allSquares = [startSquare, ...theme.checkpoints];
 
-    // Group by month (start = month 0, then checkpoints)
+    // Group by month
     const months = [
       { label: '🚀 Início', squares: [startSquare] },
       { label: '📅 Mês 1', squares: theme.checkpoints.filter(c => c.month === 1) },
@@ -76,18 +95,36 @@ const Board = (() => {
       { label: '📅 Mês 4', squares: theme.checkpoints.filter(c => c.month === 4) },
     ];
 
-    return months.map((m, mi) => `
-      <div class="month-row">
-        <div class="month-label">${m.label}</div>
-        <div class="month-squares" style="--theme-color:${theme.color}">
-          ${m.squares.map((sq, si) => renderSquare(sq, theme, themeIndex, mi === 0 && si === 0)).join('')}
+    let posCounter = 0;
+
+    return months.map((m, mi) => {
+      // Serpentine: odd month indices go left→right, even indices (≥2) go right→left
+      const isReversed = mi > 0 && mi % 2 === 0;
+      const connector = mi < months.length - 1;
+      // After a left→right row the turn happens on the right; after right→left, on the left
+      const connectorOnRight = !isReversed;
+
+      const squaresHtml = m.squares.map((sq, si) => {
+        const pos = posCounter++;
+        return renderSquare(sq, theme, themeIndex, mi === 0 && si === 0, pos);
+      }).join('');
+
+      return `
+        <div class="month-row">
+          <div class="month-label">${m.label}</div>
+          <div class="month-squares${isReversed ? ' month-squares-reversed' : ''}" style="--theme-color:${theme.color}">
+            ${squaresHtml}
+          </div>
         </div>
-      </div>
-      ${mi < months.length - 1 ? `<div class="month-separator">↓</div>` : ''}
-    `).join('');
+        ${connector ? `
+          <div class="month-connector ${connectorOnRight ? 'connector-right' : 'connector-left'}" style="--theme-color:${theme.color}">
+            <div class="connector-curve"></div>
+          </div>` : ''}
+      `;
+    }).join('');
   }
 
-  function renderSquare(sq, theme, themeIndex, isStart) {
+  function renderSquare(sq, theme, themeIndex, isStart, pos) {
     const statusClass = isStart ? 'status-done' :
       sq.status === 'in-progress' ? 'status-progress' :
       sq.status === 'done' ? 'status-done' : 'status-planned';
@@ -102,6 +139,7 @@ const Board = (() => {
 
     return `
       <div class="square type-${sq.type} ${statusClass}" ${attrs} ${clickable} title="${sq.title}">
+        ${pos !== undefined ? `<div class="square-pos">${pos}</div>` : ''}
         <div class="square-icon" style="${borderStyle}">
           ${SQUARE_ICONS[sq.type] || '⬜'}
           ${isStart ? `<div class="token" id="token-${themeIndex}" draggable="true">🎯</div>` : ''}
@@ -117,6 +155,22 @@ const Board = (() => {
     let localCp = { ...cp };
 
     function renderModalContent() {
+      const pts = calcPoints(cp.type, localCp.status, localCp.notes, localCp.links);
+      const linkList = localCp.links || [];
+
+      function pointsBreakdown() {
+        if (localCp.status === 'planned') return '<span class="pts-muted">Nenhum ponto ainda</span>';
+        const base = BASE_POINTS[cp.type] ?? 0;
+        const hasNotes = (localCp.notes || '').trim().length > 0;
+        const linkCount = Math.min((localCp.links || []).filter(l => l.trim()).length, 3);
+        if (localCp.status === 'in-progress') return `Base (${cp.type}): <b>${Math.max(0, Math.round(base/2))}</b> <span class="pts-muted">(em progresso = metade)</span>`;
+        if (cp.type === 'setback') return `Retrocesso concluído: <b>${base} pts</b>`;
+        const parts = [`Base (${TYPE_LABELS[cp.type]}): <b>+${base}</b>`];
+        if (hasNotes) parts.push('Notas preenchidas: <b>+2</b>');
+        if (linkCount > 0) parts.push(`Links (${linkCount}x): <b>+${linkCount * 3}</b>`);
+        return parts.join(' · ');
+      }
+
       content.innerHTML = `
         <div class="cp-modal-header">
           <div class="cp-modal-icon">${SQUARE_ICONS[cp.type] || '⬜'}</div>
@@ -138,17 +192,37 @@ const Board = (() => {
           </div>
         </div>
         <div class="form-group mt-2">
-          <label>Pontos</label>
-          <input type="number" id="cp-points" value="${localCp.points}" min="0" max="100" />
-        </div>
-        <div class="form-group mt-2">
           <label>Notas da reunião</label>
           <textarea id="cp-notes">${localCp.notes || ''}</textarea>
+        </div>
+        <div class="form-group mt-2">
+          <label>Links &amp; Evidências <span class="pts-muted">(+3 pts cada, máx. 3)</span></label>
+          <div id="cp-links-list">
+            ${linkList.map((l, i) => `
+              <div class="link-row" data-idx="${i}">
+                <input type="url" class="cp-link-input" value="${l}" placeholder="https://..." />
+                <button class="btn btn-ghost btn-sm cp-link-remove" data-idx="${i}">✕</button>
+              </div>`).join('')}
+          </div>
+          ${linkList.length < 3 ? `<button class="btn btn-ghost btn-sm mt-2" id="cp-add-link">＋ Adicionar link</button>` : ''}
+        </div>
+        <div class="auto-score-box" id="auto-score-box">
+          <span class="auto-score-label">⭐ Pontuação automática</span>
+          <span class="auto-score-value" id="auto-score-value" style="color:${theme.color}">${pts > 0 ? '+' : ''}${pts} pts</span>
+          <div class="auto-score-breakdown" id="auto-score-breakdown">${pointsBreakdown()}</div>
         </div>
         <div class="modal-actions">
           <button class="btn btn-ghost btn-sm" id="cp-modal-cancel">Cancelar</button>
           <button class="btn btn-primary" id="cp-modal-save" style="background:${theme.color}">💾 Salvar</button>
         </div>`;
+
+      function refreshScore() {
+        localCp.notes = document.getElementById('cp-notes').value;
+        localCp.links = [...document.querySelectorAll('.cp-link-input')].map(i => i.value);
+        const newPts = calcPoints(cp.type, localCp.status, localCp.notes, localCp.links);
+        document.getElementById('auto-score-value').textContent = `${newPts > 0 ? '+' : ''}${newPts} pts`;
+        document.getElementById('auto-score-breakdown').innerHTML = pointsBreakdown();
+      }
 
       // status buttons
       content.querySelectorAll('.status-btn').forEach(btn => {
@@ -158,14 +232,43 @@ const Board = (() => {
             b.classList.remove('active-planned', 'active-progress', 'active-done');
           });
           btn.classList.add(`active-${localCp.status === 'in-progress' ? 'progress' : localCp.status}`);
+          refreshScore();
         };
+      });
+
+      // notes change
+      document.getElementById('cp-notes').oninput = refreshScore;
+
+      // add link
+      const addLinkBtn = document.getElementById('cp-add-link');
+      if (addLinkBtn) {
+        addLinkBtn.onclick = () => {
+          localCp.links = [...document.querySelectorAll('.cp-link-input')].map(i => i.value);
+          localCp.links.push('');
+          renderModalContent();
+        };
+      }
+
+      // remove link
+      content.querySelectorAll('.cp-link-remove').forEach(btn => {
+        btn.onclick = () => {
+          localCp.links = [...document.querySelectorAll('.cp-link-input')].map(i => i.value);
+          localCp.links.splice(parseInt(btn.dataset.idx), 1);
+          renderModalContent();
+        };
+      });
+
+      // link input change
+      content.querySelectorAll('.cp-link-input').forEach(inp => {
+        inp.oninput = refreshScore;
       });
 
       document.getElementById('cp-modal-cancel').onclick = closeModal;
       document.getElementById('cp-modal-save').onclick = async () => {
         localCp.title = document.getElementById('cp-title').value.trim() || cp.title;
-        localCp.points = parseInt(document.getElementById('cp-points').value) || 0;
         localCp.notes = document.getElementById('cp-notes').value;
+        localCp.links = [...document.querySelectorAll('.cp-link-input')].map(l => l.value.trim()).filter(Boolean);
+        localCp.points = calcPoints(cp.type, localCp.status, localCp.notes, localCp.links);
         await API.put(`/checkpoints/${theme.id}/${cp.id}`, localCp);
         closeModal();
         // Refresh board
