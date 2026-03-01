@@ -93,3 +93,12 @@ pdi-board/
 | DELETE | `/api/oneOnOnes/:id` | Remove 1:1 |
 | POST | `/api/evidence` | Adiciona evidência |
 | DELETE | `/api/evidence/:id` | Remove evidência |
+
+## Configuração do SonarCloud
+
+1. Acesse [sonarcloud.io](https://sonarcloud.io) e crie/importe o projeto `devrenatafraga/pdi-board`
+2. Em **Administration → Analysis Method**, **desative o "Automatic Analysis"** (o CI fará a análise)
+3. Copie o **SONAR_TOKEN** em **My Account → Security → Generate Token**
+4. Adicione o token no repositório GitHub em **Settings → Secrets and variables → Actions → New secret** com o nome `SONAR_TOKEN`
+
+Após isso, o workflow de CI enviará a análise automaticamente em cada push/PR.
