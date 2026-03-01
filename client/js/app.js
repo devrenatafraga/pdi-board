@@ -28,6 +28,7 @@ const App = (() => {
     Token.init(data.config);
     Scoreboard.render(data);
     Evidence.render(data);
+    Reports.render(data.config);
     renderInstructions(data.config);
 
     // Navigation

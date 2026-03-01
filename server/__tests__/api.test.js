@@ -18,6 +18,8 @@ beforeEach(() => {
   app = express();
   app.use(express.json());
   app.use('/api', apiRouter);
+  const reportsRouter = require('../routes/reports');
+  app.use('/api/reports', reportsRouter);
 });
 
 afterEach(() => {
@@ -326,5 +328,38 @@ describe('DELETE /api/evidence/:id', () => {
   it('não falha ao tentar remover id inexistente', async () => {
     const res = await request(app).delete('/api/evidence/nao-existe');
     expect(res.status).toBe(200);
+  });
+});
+
+// ─── GET /api/reports/:format ──────────────────────────────────────────────────
+
+describe('GET /api/reports/:format', () => {
+  beforeEach(async () => {
+    await request(app).put('/api/config').send(sampleConfig);
+  });
+
+  it('gera relatório PDF com status 200 e content-type correto', async () => {
+    const res = await request(app).get('/api/reports/pdf');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/pdf/);
+    expect(res.body.length || res.text.length || Buffer.isBuffer(res.body) || res.headers['content-length']).toBeTruthy();
+  });
+
+  it('gera relatório DOCX com status 200 e content-type correto', async () => {
+    const res = await request(app).get('/api/reports/docx');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/wordprocessingml|docx|openxmlformats/);
+  });
+
+  it('gera relatório XLSX com status 200 e content-type correto', async () => {
+    const res = await request(app).get('/api/reports/xlsx');
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toMatch(/spreadsheetml|xlsx|openxmlformats/);
+  });
+
+  it('retorna 400 quando não há configuração para PDF', async () => {
+    fs.writeFileSync(tmpFile, JSON.stringify({ config: null, oneOnOnes: [], evidence: [] }));
+    const res = await request(app).get('/api/reports/pdf');
+    expect(res.status).toBe(400);
   });
 });

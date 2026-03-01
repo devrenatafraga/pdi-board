@@ -69,6 +69,9 @@ const Board = (() => {
           <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${Math.round(doneCount/8*100)}%</div>
         </div>
       </div>
+      <div class="progress-line-wrap">
+        ${renderProgressLine(theme, config)}
+      </div>
       <div class="board-track" id="track-${themeIndex}">
         ${renderTrack(theme, themeIndex)}
       </div>`;
@@ -98,8 +101,8 @@ const Board = (() => {
     let posCounter = 0;
 
     return months.map((m, mi) => {
-      // Serpentine: odd month indices go left→right, even indices (≥2) go right→left
-      const isReversed = mi > 0 && mi % 2 === 0;
+      // Serpentine: even month indices go left→right, odd indices go right→left
+      const isReversed = mi % 2 === 1;
       const connector = mi < months.length - 1;
       // After a left→right row the turn happens on the right; after right→left, on the left
       const connectorOnRight = !isReversed;
@@ -144,6 +147,45 @@ const Board = (() => {
         </div>
         <div class="square-label">${sq.title}</div>
         ${sq.type !== 'start' ? `<div class="square-points${sq.points > 0 ? ' has-points' : ''}">${sq.points > 0 ? `+${sq.points}pts` : ''}</div>` : ''}
+      </div>`;
+  }
+
+  function renderProgressLine(theme, config) {
+    const done = theme.checkpoints.filter(c => c.status === 'done').length;
+    const weeksSinceStart = Math.floor((Date.now() - new Date(config.startDate)) / (7 * 24 * 60 * 60 * 1000));
+    const expected = Math.min(8, Math.max(0, Math.floor(weeksSinceStart / 2)));
+    const delay = expected - done;
+    const level = delay <= 0 ? 'ok' : delay === 1 ? 'warning' : 'danger';
+    const statusText = level === 'ok' ? '✅ No prazo' : level === 'warning' ? '⚠️ 1 checkpoint atrasado' : `🔴 ${delay} checkpoints atrasados`;
+
+    // dots: position 0 = Start, 1-8 = checkpoints
+    const dots = Array.from({ length: 9 }, (_, pos) => {
+      const isDone = pos === 0 || (pos <= done);
+      const isOverdue = pos > done && pos <= expected;
+      const isCurrent = pos === done;
+      const classes = ['progress-dot', isDone ? 'done' : '', isOverdue ? 'overdue' : '', isCurrent ? 'current' : ''].filter(Boolean).join(' ');
+      return `
+        <div class="progress-dot-wrap">
+          ${isCurrent ? `<div class="progress-rocket">🚀</div>` : '<div style="height:22px"></div>'}
+          <div class="${classes}" style="${isDone ? `background:${theme.color};border-color:${theme.color}` : isOverdue ? '' : ''}">
+            ${pos === 0 ? '🏁' : pos}
+            ${isOverdue ? `<span class="progress-warn-badge">⚠️</span>` : ''}
+          </div>
+          <div class="progress-dot-num">${pos === 0 ? 'Start' : `CP${pos}`}</div>
+        </div>`;
+    }).join('');
+
+    const progressPct = Math.round((done / 8) * 100);
+
+    return `
+      <div class="progress-line">
+        <div class="progress-line-header">
+          <span class="progress-line-title">📍 Progresso na Trilha</span>
+          <span class="progress-status status-${level}">${statusText}</span>
+        </div>
+        <div class="progress-track" style="--theme-color:${theme.color};--progress-width:${progressPct}%">
+          ${dots}
+        </div>
       </div>`;
   }
 

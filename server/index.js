@@ -12,6 +12,9 @@ app.use(express.static(path.join(__dirname, '../client')));
 
 app.use('/api', apiRouter);
 
+const reportsRouter = require('./routes/reports');
+app.use('/api/reports', reportsRouter);
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/index.html'));
 });

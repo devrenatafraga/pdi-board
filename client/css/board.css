@@ -98,16 +98,12 @@
 }
 
 /* ============================================================
-   CONECTOR DE VIRADA — curva real estilo trilha de tabuleiro
+   CONECTOR DE VIRADA — barra lateral conectando linhas de meses
    ============================================================
-   Cálculo de posicionamento:
-   - .month-label: ~24px (10px font + 8px margin-bottom)
-   - .month-squares: ~128px
-   - Caminho (::before) do centro do ícone: 24 + 56 = 80px do topo do .month-row
-   - Distância caminho → fundo do .month-row: ~152 - 80 = 72px
-   Então o ::before do conector precisa:
-     top: -72px  (sobe até o caminho da linha acima)
-     height: 72 + 44 + 80 = 196px  (72 acima + altura-conector + 80 da linha abaixo)
+   Cálculo: path center no .month-row = label(24px) + margin-top-icon(16px) + icon-center(40px) = 80px
+   Distância path → fundo do .month-row ≈ 152 - 80 = 72px
+   top do ::before: -72px (sobe até a linha acima)
+   height: 72 + 44 + 80 = 196px (72 acima + conector + 80 da linha abaixo)
    ============================================================ */
 .month-connector {
   position: relative;
@@ -117,29 +113,22 @@
 .month-connector::before {
   content: '';
   position: absolute;
-  width: 64px;
+  width: 8px;
   top: -72px;
   height: 196px;
-  border: 8px solid var(--theme-color, var(--border));
-  opacity: 0.32;
+  background: var(--theme-color, var(--border));
+  opacity: 0.35;
+  border-radius: 4px;
   pointer-events: none;
   z-index: 0;
 }
 
-/* Curva na direita (após linha →): C aberta para a esquerda ⌒ */
 .month-connector.connector-right::before {
-  right: 8px;
-  border-left: none;
-  border-top-right-radius: 32px;
-  border-bottom-right-radius: 32px;
+  right: 12px;
 }
 
-/* Curva na esquerda (após linha ←): C aberta para a direita ⌒ */
 .month-connector.connector-left::before {
-  left: 8px;
-  border-right: none;
-  border-top-left-radius: 32px;
-  border-bottom-left-radius: 32px;
+  left: 12px;
 }
 
 /* ============================================================
@@ -325,6 +314,130 @@
 }
 .stat-card .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .stat-card .stat-value { font-size: 24px; font-weight: 800; margin-top: 2px; }
+
+/* ============================================================
+   LINHA DE PROGRESSO
+   ============================================================ */
+.progress-line-wrap {
+  margin-bottom: 24px;
+}
+.progress-line {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+}
+.progress-line-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.progress-line-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.progress-status {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+.progress-status.status-ok      { background: #0d2e1a; color: var(--success); }
+.progress-status.status-warning { background: #3b2e00; color: var(--warning); }
+.progress-status.status-danger  { background: #2e1010; color: var(--danger); }
+.progress-track {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  position: relative;
+}
+/* Linha de fundo da trilha */
+.progress-track::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 16px; /* center of dot */
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  z-index: 0;
+}
+/* Linha de progresso colorida */
+.progress-track::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  height: 4px;
+  width: var(--progress-width, 0%);
+  background: var(--theme-color);
+  border-radius: 2px;
+  z-index: 0;
+  transition: width 0.5s ease;
+}
+.progress-dot-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+.progress-rocket {
+  font-size: 18px;
+  line-height: 1;
+  margin-bottom: 2px;
+  animation: rocket-bounce 1s ease-in-out infinite alternate;
+}
+@keyframes rocket-bounce {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-4px); }
+}
+.progress-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 3px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  position: relative;
+  transition: all 0.3s;
+}
+.progress-dot.done {
+  background: var(--theme-color);
+  border-color: var(--theme-color);
+  color: #fff;
+}
+.progress-dot.overdue {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 2px rgba(239,68,68,0.3);
+}
+.progress-dot.current {
+  border-color: var(--theme-color);
+  box-shadow: 0 0 0 3px rgba(var(--theme-color-rgb), 0.3);
+}
+.progress-warn-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 12px;
+  line-height: 1;
+}
+.progress-dot-num {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
 
 /* ============================================================
    MODAL CHECKPOINT ESTILOS EXTRAS
