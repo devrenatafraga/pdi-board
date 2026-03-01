@@ -117,9 +117,7 @@ const Board = (() => {
           </div>
         </div>
         ${connector ? `
-          <div class="month-connector ${connectorOnRight ? 'connector-right' : 'connector-left'}" style="--theme-color:${theme.color}">
-            <div class="connector-curve"></div>
-          </div>` : ''}
+          <div class="month-connector ${connectorOnRight ? 'connector-right' : 'connector-left'}" style="--theme-color:${theme.color}"></div>` : ''}
       `;
     }).join('');
   }

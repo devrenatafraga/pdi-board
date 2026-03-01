@@ -77,11 +77,12 @@
   padding-bottom: 4px;
 }
 
-/* Trilha horizontal — linha contínua abaixo dos ícones */
+/* Trilha horizontal — linha contínua no centro dos ícones */
+/* Centro: margin-top(16) + altura-icone/2(40) = 56px */
 .month-squares::before {
   content: '';
   position: absolute;
-  top: 54px; /* centro do ícone (16px margin-top + 80px/2 = 56px) */
+  top: 56px;
   left: 8px;
   right: 8px;
   height: 8px;
@@ -97,38 +98,48 @@
 }
 
 /* ============================================================
-   CONECTOR DE VIRADA (curva da trilha entre meses)
+   CONECTOR DE VIRADA — curva real estilo trilha de tabuleiro
+   ============================================================
+   Cálculo de posicionamento:
+   - .month-label: ~24px (10px font + 8px margin-bottom)
+   - .month-squares: ~128px
+   - Caminho (::before) do centro do ícone: 24 + 56 = 80px do topo do .month-row
+   - Distância caminho → fundo do .month-row: ~152 - 80 = 72px
+   Então o ::before do conector precisa:
+     top: -72px  (sobe até o caminho da linha acima)
+     height: 72 + 44 + 80 = 196px  (72 acima + altura-conector + 80 da linha abaixo)
    ============================================================ */
 .month-connector {
   position: relative;
-  height: 52px;
+  height: 44px;
 }
 
-/* A curva CSS que imita a virada do tabuleiro */
-.connector-curve {
+.month-connector::before {
+  content: '';
   position: absolute;
-  width: 68px;
-  height: calc(100% + 8px);
-  top: -4px;
-  border: 8px solid;
-  border-color: var(--theme-color, var(--border));
-  opacity: 0.35;
+  width: 64px;
+  top: -72px;
+  height: 196px;
+  border: 8px solid var(--theme-color, var(--border));
+  opacity: 0.32;
+  pointer-events: none;
+  z-index: 0;
 }
 
-/* Curva na direita: o caminho vira à direita (após linha →) */
-.connector-right .connector-curve {
-  right: 12px;
+/* Curva na direita (após linha →): C aberta para a esquerda ⌒ */
+.month-connector.connector-right::before {
+  right: 8px;
   border-left: none;
-  border-top-right-radius: 34px;
-  border-bottom-right-radius: 34px;
+  border-top-right-radius: 32px;
+  border-bottom-right-radius: 32px;
 }
 
-/* Curva na esquerda: o caminho vira à esquerda (após linha ←) */
-.connector-left .connector-curve {
-  left: 12px;
+/* Curva na esquerda (após linha ←): C aberta para a direita ⌒ */
+.month-connector.connector-left::before {
+  left: 8px;
   border-right: none;
-  border-top-left-radius: 34px;
-  border-bottom-left-radius: 34px;
+  border-top-left-radius: 32px;
+  border-bottom-left-radius: 32px;
 }
 
 /* ============================================================
