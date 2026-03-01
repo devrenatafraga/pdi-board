@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const router = express.Router();
-const DATA_FILE = path.join(__dirname, '../data.json');
+const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, '../data.json');
 
 function readData() {
   if (!fs.existsSync(DATA_FILE)) {

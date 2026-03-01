@@ -5,13 +5,27 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "npx nodemon server/index.js"
+    "dev": "npx nodemon server/index.js",
+    "test": "jest",
+    "test:coverage": "jest --coverage"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/__tests__/**/*.test.js"],
+    "collectCoverageFrom": [
+      "server/**/*.js",
+      "!server/index.js"
+    ],
+    "coverageReporters": ["lcov", "text", "clover"],
+    "coverageDirectory": "coverage"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "jest": "^30.2.0",
+    "nodemon": "^3.0.2",
+    "supertest": "^7.2.2"
   }
 }
