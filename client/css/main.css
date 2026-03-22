@@ -515,9 +515,25 @@ tbody tr:hover td { background: var(--surface-2); }
   font-size: 12px;
   margin-top: 24px;
 }
-#clerk-sign-in {
-  display: flex;
+.btn-google-signin {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  background: #fff;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: box-shadow 0.2s, background 0.2s;
+  width: 100%;
   justify-content: center;
+}
+.btn-google-signin:hover {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  background: #f8f9fa;
 }
 
 /* ============================================================
