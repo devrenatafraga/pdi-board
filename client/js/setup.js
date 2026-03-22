@@ -1,6 +1,8 @@
-/* setup.js — wizard de configuração inicial */
+/* setup.js — wizard de configuração inicial (temas dinâmicos 1-6) */
 
 const THEME_COLORS = ['#3B82F6', '#22C55E', '#F97316', '#A855F7', '#EF4444', '#14B8A6'];
+const MAX_THEMES = 6;
+const MIN_THEMES = 1;
 
 const Setup = (() => {
   let step = 0;
@@ -10,12 +12,9 @@ const Setup = (() => {
     themes: [
       { id: 'theme-0', name: '', color: THEME_COLORS[0], checkpoints: [] },
       { id: 'theme-1', name: '', color: THEME_COLORS[1], checkpoints: [] },
-      { id: 'theme-2', name: '', color: THEME_COLORS[2], checkpoints: [] },
     ],
+    _cpThemeIdx: 0,
   };
-
-  const STEPS = ['pdi-info', 'themes-name', 'checkpoints'];
-  const STEP_LABELS = ['Informações', 'Temas', 'Checkpoints'];
 
   function buildDefaultCheckpoints(themeIndex) {
     const cps = [];
@@ -45,8 +44,12 @@ const Setup = (() => {
   }
 
   function renderProgress() {
+    const totalSteps = 2 + draft.themes.length; // pdi-info + themes-name + N checkpoints steps
+    const currentIdx = step === 0 ? 0 : step === 1 ? 1 : 2 + draft._cpThemeIdx;
     return `<div class="setup-progress">
-      ${STEPS.map((_, i) => `<div class="progress-dot ${i < step ? 'done' : i === step ? 'active' : ''}"></div>`).join('')}
+      ${Array.from({ length: totalSteps }, (_, i) =>
+        `<div class="progress-dot ${i < currentIdx ? 'done' : i === currentIdx ? 'active' : ''}"></div>`
+      ).join('')}
     </div>`;
   }
 
@@ -79,24 +82,14 @@ const Setup = (() => {
       <div class="setup-step">
         ${renderProgress()}
         <div>
-          <h2>🎨 Defina os 3 Temas</h2>
-          <p class="text-muted mt-2">Cada tema terá 4 meses e 8 checkpoints. Escolha um nome e uma cor para cada trilha.</p>
+          <h2>🎨 Defina os Temas</h2>
+          <p class="text-muted mt-2">Cada tema terá 4 meses e 8 checkpoints. Você pode ter de ${MIN_THEMES} a ${MAX_THEMES} temas.</p>
         </div>
-        ${draft.themes.map((t, i) => `
-          <div class="card">
-            <div class="form-group">
-              <label>Tema ${i + 1} — Nome</label>
-              <input type="text" class="theme-name-input" data-idx="${i}"
-                value="${t.name}" placeholder="Ex: Hard Skills, Liderança, Arquitetura..." />
-            </div>
-            <div class="form-group mt-2">
-              <label>Cor da trilha</label>
-              <div class="theme-color-row">
-                <input type="color" class="theme-color-input" data-idx="${i}" value="${t.color}" />
-                <span class="text-muted text-sm">Será usada nas casas e no placar</span>
-              </div>
-            </div>
-          </div>`).join('')}
+        <div id="themes-list">
+          ${draft.themes.map((t, i) => renderThemeRow(t, i)).join('')}
+        </div>
+        ${draft.themes.length < MAX_THEMES ? `
+          <button class="btn btn-ghost btn-sm mt-2" id="add-theme-btn">＋ Adicionar Tema</button>` : ''}
         <div class="flex justify-between mt-4">
           <button class="btn btn-ghost" id="setup-back-1">← Voltar</button>
           <button class="btn btn-primary" id="setup-next-1">Próximo →</button>
@@ -104,16 +97,37 @@ const Setup = (() => {
       </div>`;
   }
 
+  function renderThemeRow(t, i) {
+    return `
+      <div class="card theme-row" data-theme-row="${i}">
+        <div class="theme-row-header">
+          <span class="theme-row-num" style="background:${t.color}">T${i + 1}</span>
+          <div class="form-group" style="flex:1">
+            <label>Nome do Tema ${i + 1}</label>
+            <input type="text" class="theme-name-input" data-idx="${i}"
+              value="${t.name}" placeholder="Ex: Hard Skills, Liderança, Arquitetura..." />
+          </div>
+          <div class="form-group" style="width:50px">
+            <label>Cor</label>
+            <input type="color" class="theme-color-input" data-idx="${i}" value="${t.color}" />
+          </div>
+          ${draft.themes.length > MIN_THEMES ? `
+            <button class="btn btn-ghost btn-sm remove-theme-btn" data-idx="${i}" title="Remover tema" style="align-self:flex-end;margin-bottom:2px">✕</button>` : ''}
+        </div>
+      </div>`;
+  }
+
   function renderStep2() {
-    const themeIdx = draft._cpThemeIdx || 0;
+    const themeIdx = draft._cpThemeIdx;
     const theme = draft.themes[themeIdx];
+    const isLast = themeIdx === draft.themes.length - 1;
     return `
       <div class="setup-step">
         ${renderProgress()}
         <div>
           <h2>📋 Checkpoints: <span style="color:${theme.color}">${theme.name || `Tema ${themeIdx + 1}`}</span></h2>
           <p class="text-muted mt-2">Nomeie os 8 checkpoints (2 por mês). Você pode editar depois pelo board.</p>
-          <p class="text-muted text-sm">🎁 Checkpoint 3 = Bônus  |  ⚠️ Checkpoint 6 = Retrocesso  |  🏆 Checkpoint 8 = Milestone</p>
+          <p class="text-muted text-sm">🎁 CP 3 = Bônus  |  ⚠️ CP 6 = Retrocesso  |  🏆 CP 8 = Milestone</p>
         </div>
         <div class="checkpoints-grid">
           ${(theme.checkpoints.length ? theme.checkpoints : buildDefaultCheckpoints(themeIdx)).map((cp, i) => `
@@ -125,8 +139,8 @@ const Setup = (() => {
         </div>
         <div class="flex justify-between mt-4">
           <button class="btn btn-ghost" id="setup-back-cp">← ${themeIdx === 0 ? 'Voltar' : `Tema ${themeIdx}`}</button>
-          <button class="btn ${themeIdx < 2 ? 'btn-primary' : 'btn-success'}" id="setup-next-cp">
-            ${themeIdx < 2 ? `Próximo: Tema ${themeIdx + 2} →` : '✅ Criar meu PDI Board!'}
+          <button class="btn ${isLast ? 'btn-success' : 'btn-primary'}" id="setup-next-cp">
+            ${isLast ? '✅ Criar meu PDI Board!' : `Próximo: Tema ${themeIdx + 2} →`}
           </button>
         </div>
       </div>`;
@@ -154,6 +168,7 @@ const Setup = (() => {
 
   function bindStep1() {
     document.getElementById('setup-back-1').onclick = () => { step = 0; render(); };
+
     document.getElementById('setup-next-1').onclick = () => {
       document.querySelectorAll('.theme-name-input').forEach(el => {
         draft.themes[+el.dataset.idx].name = el.value.trim() || `Tema ${+el.dataset.idx + 1}`;
@@ -165,13 +180,51 @@ const Setup = (() => {
       step = 2;
       render();
     };
+
+    const addBtn = document.getElementById('add-theme-btn');
+    if (addBtn) {
+      addBtn.onclick = () => {
+        saveThemeNamesAndColors();
+        const idx = draft.themes.length;
+        draft.themes.push({
+          id: `theme-${idx}`,
+          name: '',
+          color: THEME_COLORS[idx % THEME_COLORS.length],
+          checkpoints: [],
+        });
+        render();
+      };
+    }
+
+    document.querySelectorAll('.remove-theme-btn').forEach(btn => {
+      btn.onclick = () => {
+        saveThemeNamesAndColors();
+        const idx = +btn.dataset.idx;
+        draft.themes.splice(idx, 1);
+        // Re-assign IDs
+        draft.themes.forEach((t, i) => { t.id = `theme-${i}`; });
+        render();
+      };
+    });
+  }
+
+  function saveThemeNamesAndColors() {
+    document.querySelectorAll('.theme-name-input').forEach(el => {
+      if (draft.themes[+el.dataset.idx]) {
+        draft.themes[+el.dataset.idx].name = el.value.trim() || `Tema ${+el.dataset.idx + 1}`;
+      }
+    });
+    document.querySelectorAll('.theme-color-input').forEach(el => {
+      if (draft.themes[+el.dataset.idx]) {
+        draft.themes[+el.dataset.idx].color = el.value;
+      }
+    });
   }
 
   function bindStep2() {
     const themeIdx = draft._cpThemeIdx;
     const theme = draft.themes[themeIdx];
 
-    // save cp names from inputs
     function saveCpNames() {
       const cps = theme.checkpoints.length ? theme.checkpoints : buildDefaultCheckpoints(themeIdx);
       document.querySelectorAll('.cp-name-input').forEach((el, i) => {
@@ -188,7 +241,7 @@ const Setup = (() => {
 
     document.getElementById('setup-next-cp').onclick = async () => {
       saveCpNames();
-      if (themeIdx < 2) {
+      if (themeIdx < draft.themes.length - 1) {
         draft._cpThemeIdx = themeIdx + 1;
         render();
       } else {
@@ -217,7 +270,15 @@ const Setup = (() => {
   return {
     show() {
       step = 0;
-      draft._cpThemeIdx = 0;
+      draft = {
+        title: 'Meu PDI',
+        startDate: '',
+        themes: [
+          { id: 'theme-0', name: '', color: THEME_COLORS[0], checkpoints: [] },
+          { id: 'theme-1', name: '', color: THEME_COLORS[1], checkpoints: [] },
+        ],
+        _cpThemeIdx: 0,
+      };
       document.getElementById('setup-overlay').classList.remove('hidden');
       render();
     },
