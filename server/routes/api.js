@@ -24,30 +24,6 @@ function normalizeCheckpoint(cp) {
   };
 }
 
-async function buildDataPayload(pdiId) {
-  const [themes, oneOnOnes, evidence] = await Promise.all([
-    themeRepo.findByPdi(pdiId),
-    oneOnOneRepo.findByPdi(pdiId),
-    evidenceRepo.findByPdi(pdiId),
-  ]);
-
-  const themesWithCheckpoints = await Promise.all(
-    themes.map(async t => {
-      const checkpoints = await checkpointRepo.findByTheme(t.id);
-      return {
-        id: t.id,
-        name: t.name,
-        color: t.color,
-        position: t.position,
-        tokenPosition: t.token_position,
-        checkpoints: checkpoints.map(normalizeCheckpoint),
-      };
-    })
-  );
-
-  return { config: null, oneOnOnes, evidence, themesWithCheckpoints };
-}
-
 // Returns the active PDI for the authenticated user (or null)
 // For now, "active" = the most recently created PDI.
 // req.clerkUserId is injected by the requireAuth middleware (added in feature/auth).
@@ -79,17 +55,7 @@ router.get('/data', async (req, res) => {
           name: t.name,
           color: t.color,
           tokenPosition: t.token_position,
-          checkpoints: checkpoints.map(cp => ({
-            id: cp.id,
-            title: cp.title,
-            month: cp.month,
-            biweekly: cp.biweekly,
-            type: cp.type,
-            status: cp.status,
-            points: cp.points,
-            notes: cp.notes,
-            links: cp.links ?? [],
-          })),
+          checkpoints: checkpoints.map(normalizeCheckpoint),
         };
       })
     );
