@@ -1,49 +1,64 @@
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
 const PDFDocument = require('pdfkit');
 const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, HeadingLevel, WidthType } = require('docx');
 const ExcelJS = require('exceljs');
+const pdiRepo        = require('../db/repositories/pdiRepo');
+const themeRepo      = require('../db/repositories/themeRepo');
+const checkpointRepo = require('../db/repositories/checkpointRepo');
 
 const router = express.Router();
-const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, '../data.json');
-
-function readData() {
-  if (!fs.existsSync(DATA_FILE)) return { config: null, oneOnOnes: [], evidence: [] };
-  return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-}
 
 const STATUS_LABELS = { planned: 'Planejado', 'in-progress': 'Em Progresso', done: 'Concluído' };
 const TYPE_LABELS   = { normal: 'Checkpoint', bonus: 'Bônus', setback: 'Retrocesso', milestone: 'Milestone', start: 'Início' };
 
-// ─── PDF ──────────────────────────────────────────────────────────────────────
-router.get('/pdf', (req, res) => {
-  const data = readData();
-  if (!data.config) return res.status(400).json({ error: 'Sem configuração' });
+function getUserId(req) {
+  return req.clerkUserId || req.headers['x-dev-user-id'] || 'dev-user';
+}
 
+async function loadReportData(req) {
+  const userId = getUserId(req);
+  const pdis = await pdiRepo.findByUser(userId);
+  const pdi = pdis[0];
+  if (!pdi) return null;
+
+  const themes = await themeRepo.findByPdi(pdi.id);
+  const themesWithCheckpoints = await Promise.all(
+    themes.map(async t => {
+      const checkpoints = await checkpointRepo.findByTheme(t.id);
+      return { ...t, checkpoints };
+    })
+  );
+
+  return { pdi, themes: themesWithCheckpoints };
+}
+
+// ─── PDF ──────────────────────────────────────────────────────────────────────
+router.get('/pdf', async (req, res) => {
+  const data = await loadReportData(req);
+  if (!data) return res.status(400).json({ error: 'Sem configuração' });
+
+  const { pdi, themes } = data;
   const doc = new PDFDocument({ margin: 50, size: 'A4' });
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="pdi-report.pdf"`);
   doc.pipe(res);
 
-  const { config } = data;
-
-  // Header
   doc.fontSize(22).font('Helvetica-Bold').text('PDI Board — Relatório', { align: 'center' });
   doc.moveDown(0.3);
-  doc.fontSize(12).font('Helvetica').fillColor('#666').text(config.title, { align: 'center' });
-  doc.fontSize(10).text(`Início: ${config.startDate}  |  Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, { align: 'center' });
+  doc.fontSize(12).font('Helvetica').fillColor('#666').text(pdi.title, { align: 'center' });
+  doc.fontSize(10).text(`Início: ${pdi.start_date}  |  Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, { align: 'center' });
   doc.moveDown(1);
 
-  config.themes.forEach((theme, ti) => {
+  const totalCheckpoints = themes.reduce((s, t) => s + t.checkpoints.length, 0);
+
+  themes.forEach((theme, ti) => {
     const done = theme.checkpoints.filter(c => c.status === 'done').length;
     const pts  = theme.checkpoints.reduce((s, c) => s + (c.points || 0), 0);
 
     doc.fontSize(15).font('Helvetica-Bold').fillColor('#000').text(`Tema ${ti + 1}: ${theme.name}`);
-    doc.fontSize(10).font('Helvetica').fillColor('#444').text(`${done}/8 concluídos · ${pts} pontos`);
+    doc.fontSize(10).font('Helvetica').fillColor('#444').text(`${done}/${theme.checkpoints.length} concluídos · ${pts} pontos`);
     doc.moveDown(0.5);
 
-    // Table header
     const cols = { pos: 40, title: 180, type: 70, status: 80, pts: 45, notes: 130 };
     const tableX = 50;
     let y = doc.y;
@@ -64,13 +79,12 @@ router.get('/pdf', (req, res) => {
       const bg = ci % 2 === 0 ? '#f9f9f9' : '#ffffff';
       doc.rect(tableX, y, 545, rowH).fill(bg);
       doc.fontSize(8).font('Helvetica').fillColor('#222');
-      const x0 = tableX;
-      doc.text(String(ci + 1),                x0 + 4,                                          y + 4, { width: cols.pos })
-         .text(cp.title,                       x0 + cols.pos,                                   y + 4, { width: cols.title - 4 })
-         .text(TYPE_LABELS[cp.type] || cp.type, x0 + cols.pos + cols.title,                     y + 4, { width: cols.type })
-         .text(STATUS_LABELS[cp.status] || cp.status, x0 + cols.pos + cols.title + cols.type,  y + 4, { width: cols.pts })
-         .text(String(cp.points || 0),         x0 + cols.pos + cols.title + cols.type + cols.pts, y + 4, { width: cols.pts })
-         .text((cp.notes || '').slice(0, 40),  x0 + cols.pos + cols.title + cols.type + cols.pts * 2, y + 4, { width: cols.notes });
+      doc.text(String(ci + 1),                tableX + 4,                                          y + 4, { width: cols.pos })
+         .text(cp.title,                       tableX + cols.pos,                                   y + 4, { width: cols.title - 4 })
+         .text(TYPE_LABELS[cp.type] || cp.type, tableX + cols.pos + cols.title,                     y + 4, { width: cols.type })
+         .text(STATUS_LABELS[cp.status] || cp.status, tableX + cols.pos + cols.title + cols.type,  y + 4, { width: cols.pts })
+         .text(String(cp.points || 0),         tableX + cols.pos + cols.title + cols.type + cols.pts, y + 4, { width: cols.pts })
+         .text((cp.notes || '').slice(0, 40),  tableX + cols.pos + cols.title + cols.type + cols.pts * 2, y + 4, { width: cols.notes });
       y += rowH;
       if (y > 740) { doc.addPage(); y = 50; }
     });
@@ -79,12 +93,11 @@ router.get('/pdf', (req, res) => {
     y = doc.y;
   });
 
-  // Summary
-  const totalPts  = config.themes.reduce((s, t) => s + t.checkpoints.reduce((a, c) => a + (c.points || 0), 0), 0);
-  const totalDone = config.themes.reduce((s, t) => s + t.checkpoints.filter(c => c.status === 'done').length, 0);
+  const totalPts  = themes.reduce((s, t) => s + t.checkpoints.reduce((a, c) => a + (c.points || 0), 0), 0);
+  const totalDone = themes.reduce((s, t) => s + t.checkpoints.filter(c => c.status === 'done').length, 0);
   doc.fontSize(13).font('Helvetica-Bold').fillColor('#000').text('Resumo Geral');
   doc.fontSize(11).font('Helvetica').fillColor('#333');
-  doc.text(`Total de checkpoints concluídos: ${totalDone}/24`);
+  doc.text(`Total de checkpoints concluídos: ${totalDone}/${totalCheckpoints}`);
   doc.text(`Total de pontos acumulados: ${totalPts}`);
 
   doc.end();
@@ -92,23 +105,25 @@ router.get('/pdf', (req, res) => {
 
 // ─── DOCX ─────────────────────────────────────────────────────────────────────
 router.get('/docx', async (req, res) => {
-  const data = readData();
-  if (!data.config) return res.status(400).json({ error: 'Sem configuração' });
+  const data = await loadReportData(req);
+  if (!data) return res.status(400).json({ error: 'Sem configuração' });
 
-  const { config } = data;
+  const { pdi, themes } = data;
   const children = [];
 
   children.push(new Paragraph({ text: 'PDI Board — Relatório', heading: HeadingLevel.TITLE }));
-  children.push(new Paragraph({ text: config.title, heading: HeadingLevel.HEADING_2 }));
-  children.push(new Paragraph({ text: `Início: ${config.startDate} | Gerado: ${new Date().toLocaleDateString('pt-BR')}` }));
+  children.push(new Paragraph({ text: pdi.title, heading: HeadingLevel.HEADING_2 }));
+  children.push(new Paragraph({ text: `Início: ${pdi.start_date} | Gerado: ${new Date().toLocaleDateString('pt-BR')}` }));
   children.push(new Paragraph({ text: '' }));
 
-  config.themes.forEach((theme, ti) => {
+  const totalCheckpoints = themes.reduce((s, t) => s + t.checkpoints.length, 0);
+
+  themes.forEach((theme, ti) => {
     const done = theme.checkpoints.filter(c => c.status === 'done').length;
     const pts  = theme.checkpoints.reduce((s, c) => s + (c.points || 0), 0);
 
     children.push(new Paragraph({ text: `Tema ${ti + 1}: ${theme.name}`, heading: HeadingLevel.HEADING_1 }));
-    children.push(new Paragraph({ text: `${done}/8 concluídos · ${pts} pontos` }));
+    children.push(new Paragraph({ text: `${done}/${theme.checkpoints.length} concluídos · ${pts} pontos` }));
     children.push(new Paragraph({ text: '' }));
 
     const headerRow = new TableRow({
@@ -126,17 +141,14 @@ router.get('/docx', async (req, res) => {
       })
     );
 
-    children.push(new Table({
-      width: { size: 100, type: WidthType.PERCENTAGE },
-      rows: [headerRow, ...dataRows],
-    }));
+    children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headerRow, ...dataRows] }));
     children.push(new Paragraph({ text: '' }));
   });
 
-  const totalPts  = config.themes.reduce((s, t) => s + t.checkpoints.reduce((a, c) => a + (c.points || 0), 0), 0);
-  const totalDone = config.themes.reduce((s, t) => s + t.checkpoints.filter(c => c.status === 'done').length, 0);
+  const totalPts  = themes.reduce((s, t) => s + t.checkpoints.reduce((a, c) => a + (c.points || 0), 0), 0);
+  const totalDone = themes.reduce((s, t) => s + t.checkpoints.filter(c => c.status === 'done').length, 0);
   children.push(new Paragraph({ text: 'Resumo Geral', heading: HeadingLevel.HEADING_1 }));
-  children.push(new Paragraph({ text: `Total checkpoints concluídos: ${totalDone}/24` }));
+  children.push(new Paragraph({ text: `Total checkpoints concluídos: ${totalDone}/${totalCheckpoints}` }));
   children.push(new Paragraph({ text: `Total de pontos: ${totalPts}` }));
 
   const doc = new Document({ sections: [{ children }] });
@@ -149,15 +161,14 @@ router.get('/docx', async (req, res) => {
 
 // ─── XLSX ─────────────────────────────────────────────────────────────────────
 router.get('/xlsx', async (req, res) => {
-  const data = readData();
-  if (!data.config) return res.status(400).json({ error: 'Sem configuração' });
+  const data = await loadReportData(req);
+  if (!data) return res.status(400).json({ error: 'Sem configuração' });
 
-  const { config } = data;
+  const { pdi, themes } = data;
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'PDI Board';
   workbook.created = new Date();
 
-  // Summary sheet
   const summary = workbook.addWorksheet('Resumo');
   summary.columns = [
     { header: 'Tema', key: 'theme', width: 30 },
@@ -168,14 +179,14 @@ router.get('/xlsx', async (req, res) => {
   ];
   summary.getRow(1).font = { bold: true };
 
-  config.themes.forEach(theme => {
+  themes.forEach(theme => {
     const done = theme.checkpoints.filter(c => c.status === 'done').length;
     const pts  = theme.checkpoints.reduce((s, c) => s + (c.points || 0), 0);
-    summary.addRow({ theme: theme.name, done, total: 8, points: pts, pct: `${Math.round(done / 8 * 100)}%` });
+    const total = theme.checkpoints.length;
+    summary.addRow({ theme: theme.name, done, total, points: pts, pct: `${Math.round(done / total * 100)}%` });
   });
 
-  // One sheet per theme
-  config.themes.forEach((theme, ti) => {
+  themes.forEach((theme, ti) => {
     const ws = workbook.addWorksheet(`Tema ${ti + 1}`);
     ws.columns = [
       { header: '#',          key: 'num',    width: 5  },

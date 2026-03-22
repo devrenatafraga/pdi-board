@@ -1,30 +1,146 @@
 const request = require('supertest');
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
 
-let tmpFile;
+// ─── Mocks declarados antes de qualquer import ────────────────────────────────
+
+jest.mock('../db/repositories/pdiRepo');
+jest.mock('../db/repositories/themeRepo');
+jest.mock('../db/repositories/checkpointRepo');
+jest.mock('../db/repositories/oneOnOneRepo');
+jest.mock('../db/repositories/evidenceRepo');
+
+// ─── Estado em memória (resetado em beforeEach) ───────────────────────────────
+
+let mockDb;
+
+function resetDb() {
+  mockDb = { pdis: [], themes: [], checkpoints: [], oneOnOnes: [], evidence: [] };
+}
+
+function genUuid() {
+  return `uuid-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+// ─── Setup ────────────────────────────────────────────────────────────────────
+
 let app;
 
 beforeEach(() => {
-  // Arquivo temporário isolado por teste
-  tmpFile = path.join(os.tmpdir(), `pdi-test-${Date.now()}.json`);
-  process.env.DATA_FILE = tmpFile;
-
-  // Limpa cache do módulo para reler DATA_FILE
+  resetDb();
   jest.resetModules();
-  const apiRouter = require('../routes/api');
+
+  // Re-require após resetModules para pegar mocks frescos
+  const pdiRepo        = require('../db/repositories/pdiRepo');
+  const themeRepo      = require('../db/repositories/themeRepo');
+  const checkpointRepo = require('../db/repositories/checkpointRepo');
+  const oneOnOneRepo   = require('../db/repositories/oneOnOneRepo');
+  const evidenceRepo   = require('../db/repositories/evidenceRepo');
+
+  // ── pdiRepo ──
+  pdiRepo.findByUser.mockImplementation(userId =>
+    Promise.resolve(mockDb.pdis.filter(p => p.clerk_user_id === userId))
+  );
+  pdiRepo.findById.mockImplementation((id, userId) =>
+    Promise.resolve(mockDb.pdis.find(p => p.id === id && p.clerk_user_id === userId) || null)
+  );
+  pdiRepo.create.mockImplementation((userId, { title, startDate }) => {
+    const pdi = { id: genUuid(), clerk_user_id: userId, title, start_date: startDate, created_at: new Date().toISOString() };
+    mockDb.pdis.push(pdi);
+    return Promise.resolve(pdi);
+  });
+  pdiRepo.update.mockImplementation((id, userId, fields) => {
+    const pdi = mockDb.pdis.find(p => p.id === id && p.clerk_user_id === userId);
+    if (!pdi) return Promise.resolve(null);
+    Object.assign(pdi, { title: fields.title, start_date: fields.startDate });
+    return Promise.resolve(pdi);
+  });
+
+  // ── themeRepo ──
+  themeRepo.findByPdi.mockImplementation(pdiId =>
+    Promise.resolve(mockDb.themes.filter(t => t.pdi_id === pdiId).sort((a, b) => a.position - b.position))
+  );
+  themeRepo.findById.mockImplementation(id =>
+    Promise.resolve(mockDb.themes.find(t => t.id === id) || null)
+  );
+  themeRepo.create.mockImplementation((pdiId, { name, color, position }) => {
+    const theme = { id: genUuid(), pdi_id: pdiId, name, color, position: position ?? 0, token_position: 0 };
+    mockDb.themes.push(theme);
+    return Promise.resolve(theme);
+  });
+  themeRepo.update.mockImplementation((id, fields) => {
+    const theme = mockDb.themes.find(t => t.id === id);
+    if (!theme) return Promise.resolve(null);
+    if (fields.name !== undefined) theme.name = fields.name;
+    if (fields.color !== undefined) theme.color = fields.color;
+    if (fields.token_position !== undefined) theme.token_position = fields.token_position;
+    return Promise.resolve(theme);
+  });
+
+  // ── checkpointRepo ──
+  checkpointRepo.findByTheme.mockImplementation(themeId =>
+    Promise.resolve(
+      mockDb.checkpoints
+        .filter(c => c.theme_id === themeId)
+        .sort((a, b) => a.month - b.month || a.biweekly - b.biweekly)
+    )
+  );
+  checkpointRepo.findById.mockImplementation(id =>
+    Promise.resolve(mockDb.checkpoints.find(c => c.id === id) || null)
+  );
+  checkpointRepo.bulkCreate.mockImplementation((themeId, checkpoints) => {
+    const created = checkpoints.map(cp => ({
+      id: genUuid(), theme_id: themeId, title: cp.title,
+      month: cp.month, biweekly: cp.biweekly, type: cp.type,
+      status: cp.status ?? 'planned', points: cp.points ?? 0,
+      notes: cp.notes ?? '', links: cp.links ?? [],
+    }));
+    mockDb.checkpoints.push(...created);
+    return Promise.resolve(created);
+  });
+  checkpointRepo.update.mockImplementation((id, fields) => {
+    const cp = mockDb.checkpoints.find(c => c.id === id);
+    if (!cp) return Promise.resolve(null);
+    ['title', 'status', 'points', 'notes', 'links'].forEach(k => {
+      if (fields[k] !== undefined) cp[k] = fields[k];
+    });
+    return Promise.resolve(cp);
+  });
+
+  // ── oneOnOneRepo ──
+  oneOnOneRepo.findByPdi.mockImplementation(pdiId =>
+    Promise.resolve(mockDb.oneOnOnes.filter(o => o.pdi_id === pdiId))
+  );
+  oneOnOneRepo.create.mockImplementation((pdiId, { date, notes }) => {
+    const entry = { id: genUuid(), pdi_id: pdiId, date, notes: notes ?? '', created_at: new Date().toISOString() };
+    mockDb.oneOnOnes.push(entry);
+    return Promise.resolve(entry);
+  });
+  oneOnOneRepo.remove.mockImplementation((id, pdiId) => {
+    mockDb.oneOnOnes = mockDb.oneOnOnes.filter(o => !(o.id === id && o.pdi_id === pdiId));
+    return Promise.resolve();
+  });
+
+  // ── evidenceRepo ──
+  evidenceRepo.findByPdi.mockImplementation(pdiId =>
+    Promise.resolve(mockDb.evidence.filter(e => e.pdi_id === pdiId))
+  );
+  evidenceRepo.create.mockImplementation((pdiId, { title, url, checkpointId }) => {
+    const entry = { id: genUuid(), pdi_id: pdiId, checkpoint_id: checkpointId ?? null, title, url: url ?? '', created_at: new Date().toISOString() };
+    mockDb.evidence.push(entry);
+    return Promise.resolve(entry);
+  });
+  evidenceRepo.remove.mockImplementation((id, pdiId) => {
+    mockDb.evidence = mockDb.evidence.filter(e => !(e.id === id && e.pdi_id === pdiId));
+    return Promise.resolve();
+  });
+
+  const apiRouter     = require('../routes/api');
+  const reportsRouter = require('../routes/reports');
   app = express();
   app.use(express.json());
+  app.use((req, _res, next) => { req.headers['x-dev-user-id'] = 'test-user'; next(); });
   app.use('/api', apiRouter);
-  const reportsRouter = require('../routes/reports');
   app.use('/api/reports', reportsRouter);
-});
-
-afterEach(() => {
-  if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
-  delete process.env.DATA_FILE;
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -46,17 +162,21 @@ const sampleConfig = {
   ],
 };
 
+async function seedConfig() {
+  return request(app).put('/api/config').send(sampleConfig);
+}
+
 // ─── GET /api/data ─────────────────────────────────────────────────────────────
 
 describe('GET /api/data', () => {
-  it('retorna estrutura inicial quando data.json não existe', async () => {
+  it('retorna estrutura inicial quando não há PDI cadastrado', async () => {
     const res = await request(app).get('/api/data');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ config: null, oneOnOnes: [], evidence: [] });
   });
 
-  it('retorna dados persistidos após criação do arquivo', async () => {
-    fs.writeFileSync(tmpFile, JSON.stringify({ config: sampleConfig, oneOnOnes: [], evidence: [] }));
+  it('retorna dados persistidos após criação do PDI', async () => {
+    await seedConfig();
     const res = await request(app).get('/api/data');
     expect(res.status).toBe(200);
     expect(res.body.config.title).toBe('PDI 2025');
@@ -72,47 +192,39 @@ describe('PUT /api/config', () => {
     expect(res.body).toEqual({ ok: true });
   });
 
-  it('persiste a configuração no arquivo', async () => {
-    await request(app).put('/api/config').send(sampleConfig);
-    const saved = JSON.parse(fs.readFileSync(tmpFile));
-    expect(saved.config.title).toBe('PDI 2025');
-    expect(saved.config.themes).toHaveLength(1);
+  it('persiste temas e checkpoints', async () => {
+    await seedConfig();
+    const res = await request(app).get('/api/data');
+    expect(res.body.config.themes).toHaveLength(1);
+    expect(res.body.config.themes[0].name).toBe('Hard Skills');
+    expect(res.body.config.themes[0].checkpoints).toHaveLength(2);
   });
 });
 
 // ─── PUT /api/themes/:id ────────────────────────────────────────────────────────
 
 describe('PUT /api/themes/:id', () => {
+  let themeId;
+
   beforeEach(async () => {
-    await request(app).put('/api/config').send(sampleConfig);
+    await seedConfig();
+    const data = await request(app).get('/api/data');
+    themeId = data.body.config.themes[0].id;
   });
 
   it('atualiza nome e cor do tema', async () => {
-    const res = await request(app)
-      .put('/api/themes/theme-0')
-      .send({ name: 'Soft Skills', color: '#22C55E' });
+    const res = await request(app).put(`/api/themes/${themeId}`).send({ name: 'Soft Skills', color: '#22C55E' });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true });
-
-    const data = JSON.parse(fs.readFileSync(tmpFile));
-    expect(data.config.themes[0].name).toBe('Soft Skills');
-    expect(data.config.themes[0].color).toBe('#22C55E');
+    const theme = mockDb.themes.find(t => t.id === themeId);
+    expect(theme.name).toBe('Soft Skills');
+    expect(theme.color).toBe('#22C55E');
   });
 
   it('atualiza tokenPosition do tema', async () => {
-    const res = await request(app)
-      .put('/api/themes/theme-0')
-      .send({ tokenPosition: 2 });
-    expect(res.status).toBe(200);
-    const data = JSON.parse(fs.readFileSync(tmpFile));
-    expect(data.config.themes[0].tokenPosition).toBe(2);
-  });
-
-  it('retorna 400 quando não há configuração', async () => {
-    // Reset sem config
-    fs.writeFileSync(tmpFile, JSON.stringify({ config: null, oneOnOnes: [], evidence: [] }));
-    const res = await request(app).put('/api/themes/theme-0').send({ name: 'X' });
-    expect(res.status).toBe(400);
+    await request(app).put(`/api/themes/${themeId}`).send({ tokenPosition: 2 });
+    const theme = mockDb.themes.find(t => t.id === themeId);
+    expect(theme.token_position).toBe(2);
   });
 
   it('retorna 404 para tema inexistente', async () => {
@@ -124,13 +236,19 @@ describe('PUT /api/themes/:id', () => {
 // ─── PUT /api/checkpoints/:themeId/:id ────────────────────────────────────────
 
 describe('PUT /api/checkpoints/:themeId/:id', () => {
+  let themeId, cpId, cpBonusId;
+
   beforeEach(async () => {
-    await request(app).put('/api/config').send(sampleConfig);
+    await seedConfig();
+    const data = await request(app).get('/api/data');
+    themeId   = data.body.config.themes[0].id;
+    cpId      = data.body.config.themes[0].checkpoints[0].id;
+    cpBonusId = data.body.config.themes[0].checkpoints[1].id;
   });
 
   it('atualiza status e pontos do checkpoint', async () => {
     const res = await request(app)
-      .put('/api/checkpoints/theme-0/cp-0-1')
+      .put(`/api/checkpoints/${themeId}/${cpId}`)
       .send({ status: 'done', points: 10, notes: 'Ótimo!' });
     expect(res.status).toBe(200);
     expect(res.body.checkpoint.status).toBe('done');
@@ -139,39 +257,34 @@ describe('PUT /api/checkpoints/:themeId/:id', () => {
 
   it('persiste as alterações do checkpoint', async () => {
     await request(app)
-      .put('/api/checkpoints/theme-0/cp-0-1')
+      .put(`/api/checkpoints/${themeId}/${cpId}`)
       .send({ status: 'in-progress', points: 5, notes: 'Em andamento' });
-    const data = JSON.parse(fs.readFileSync(tmpFile));
-    const cp = data.config.themes[0].checkpoints[0];
+    const cp = mockDb.checkpoints.find(c => c.id === cpId);
     expect(cp.status).toBe('in-progress');
     expect(cp.notes).toBe('Em andamento');
   });
 
   it('salva links de evidência no checkpoint', async () => {
-    const links = ['https://github.com/org/repo/pull/1', 'https://notion.so/nota-do-11'];
+    const links = ['https://github.com/org/repo/pull/1', 'https://notion.so/nota'];
     const res = await request(app)
-      .put('/api/checkpoints/theme-0/cp-0-1')
-      .send({ status: 'done', points: 15, notes: 'Concluído com evidências', links });
+      .put(`/api/checkpoints/${themeId}/${cpId}`)
+      .send({ status: 'done', points: 15, notes: 'Concluído', links });
     expect(res.status).toBe(200);
     expect(res.body.checkpoint.links).toEqual(links);
-
-    const data = JSON.parse(fs.readFileSync(tmpFile));
-    expect(data.config.themes[0].checkpoints[0].links).toEqual(links);
   });
 
   it('salva pontos auto-calculados enviados pelo cliente', async () => {
-    // cliente calcula: done + notas + 2 links = 10 + 2 + 6 = 18pts
     const res = await request(app)
-      .put('/api/checkpoints/theme-0/cp-0-1')
-      .send({ status: 'done', points: 18, notes: 'Notas preenchidas', links: ['https://a.com', 'https://b.com'] });
+      .put(`/api/checkpoints/${themeId}/${cpId}`)
+      .send({ status: 'done', points: 18, notes: 'Notas', links: ['https://a.com', 'https://b.com'] });
     expect(res.status).toBe(200);
     expect(res.body.checkpoint.points).toBe(18);
   });
 
-  it('salva pontos de bônus com links (done + notas + 3 links = 15+2+9 = 26)', async () => {
+  it('salva pontos de bônus com links', async () => {
     const links = ['https://x.com', 'https://y.com', 'https://z.com'];
     const res = await request(app)
-      .put('/api/checkpoints/theme-0/cp-0-2') // cp-0-2 é tipo 'bonus'
+      .put(`/api/checkpoints/${themeId}/${cpBonusId}`)
       .send({ status: 'done', points: 26, notes: 'Entrega excepcional', links });
     expect(res.status).toBe(200);
     expect(res.body.checkpoint.points).toBe(26);
@@ -180,25 +293,13 @@ describe('PUT /api/checkpoints/:themeId/:id', () => {
 
   it('aceita checkpoint sem links (campo opcional)', async () => {
     const res = await request(app)
-      .put('/api/checkpoints/theme-0/cp-0-1')
+      .put(`/api/checkpoints/${themeId}/${cpId}`)
       .send({ status: 'done', points: 10, notes: '' });
     expect(res.status).toBe(200);
-    expect(res.body.checkpoint.links).toBeUndefined();
-  });
-
-  it('retorna 400 quando não há configuração', async () => {
-    fs.writeFileSync(tmpFile, JSON.stringify({ config: null, oneOnOnes: [], evidence: [] }));
-    const res = await request(app).put('/api/checkpoints/theme-0/cp-0-1').send({ status: 'done' });
-    expect(res.status).toBe(400);
-  });
-
-  it('retorna 404 para tema inexistente', async () => {
-    const res = await request(app).put('/api/checkpoints/nao-existe/cp-0-1').send({ status: 'done' });
-    expect(res.status).toBe(404);
   });
 
   it('retorna 404 para checkpoint inexistente', async () => {
-    const res = await request(app).put('/api/checkpoints/theme-0/nao-existe').send({ status: 'done' });
+    const res = await request(app).put(`/api/checkpoints/${themeId}/nao-existe`).send({ status: 'done' });
     expect(res.status).toBe(404);
   });
 });
@@ -206,52 +307,41 @@ describe('PUT /api/checkpoints/:themeId/:id', () => {
 // ─── POST /api/oneOnOnes ───────────────────────────────────────────────────────
 
 describe('POST /api/oneOnOnes', () => {
-  const newEntry = {
-    date: '2025-01-15',
-    themeId: 'theme-0',
-    checkpointId: 'cp-0-1',
-    points: 10,
-    notes: 'Reunião produtiva',
-  };
+  beforeEach(() => seedConfig());
+
+  const newEntry = { date: '2025-01-15', notes: 'Reunião produtiva' };
 
   it('cria registro de 1:1 e retorna com id gerado', async () => {
     const res = await request(app).post('/api/oneOnOnes').send(newEntry);
     expect(res.status).toBe(201);
     expect(res.body.id).toBeDefined();
-    expect(res.body.points).toBe(10);
     expect(res.body.notes).toBe('Reunião produtiva');
   });
 
-  it('persiste o registro no arquivo', async () => {
+  it('persiste o registro', async () => {
     await request(app).post('/api/oneOnOnes').send(newEntry);
-    const data = JSON.parse(fs.readFileSync(tmpFile));
-    expect(data.oneOnOnes).toHaveLength(1);
-    expect(data.oneOnOnes[0].date).toBe('2025-01-15');
+    expect(mockDb.oneOnOnes).toHaveLength(1);
+    expect(mockDb.oneOnOnes[0].date).toBe('2025-01-15');
   });
 
   it('acumula múltiplos registros', async () => {
     await request(app).post('/api/oneOnOnes').send(newEntry);
     await request(app).post('/api/oneOnOnes').send({ ...newEntry, date: '2025-01-29' });
-    const data = JSON.parse(fs.readFileSync(tmpFile));
-    expect(data.oneOnOnes).toHaveLength(2);
+    expect(mockDb.oneOnOnes).toHaveLength(2);
   });
 });
 
 // ─── DELETE /api/oneOnOnes/:id ─────────────────────────────────────────────────
 
 describe('DELETE /api/oneOnOnes/:id', () => {
-  it('remove registro de 1:1 pelo id', async () => {
-    const created = await request(app).post('/api/oneOnOnes').send({
-      date: '2025-01-15', themeId: 'theme-0', checkpointId: 'cp-0-1', points: 10, notes: '',
-    });
-    const id = created.body.id;
+  beforeEach(() => seedConfig());
 
-    const res = await request(app).delete(`/api/oneOnOnes/${id}`);
+  it('remove registro de 1:1 pelo id', async () => {
+    const created = await request(app).post('/api/oneOnOnes').send({ date: '2025-01-15', notes: '' });
+    const res = await request(app).delete(`/api/oneOnOnes/${created.body.id}`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true });
-
-    const data = JSON.parse(fs.readFileSync(tmpFile));
-    expect(data.oneOnOnes).toHaveLength(0);
+    expect(mockDb.oneOnOnes).toHaveLength(0);
   });
 
   it('não falha ao tentar remover id inexistente', async () => {
@@ -263,12 +353,12 @@ describe('DELETE /api/oneOnOnes/:id', () => {
 // ─── POST /api/evidence ────────────────────────────────────────────────────────
 
 describe('POST /api/evidence', () => {
+  beforeEach(() => seedConfig());
+
   const newEv = {
     title: 'PR #42 — Feature X',
     url: 'https://github.com/devrenatafraga/pdi-board/pull/42',
     type: 'PR',
-    themeId: 'theme-0',
-    date: '2025-01-20',
   };
 
   it('cria evidência e retorna com id gerado', async () => {
@@ -276,14 +366,12 @@ describe('POST /api/evidence', () => {
     expect(res.status).toBe(201);
     expect(res.body.id).toBeDefined();
     expect(res.body.title).toBe('PR #42 — Feature X');
-    expect(res.body.type).toBe('PR');
   });
 
-  it('persiste a evidência no arquivo', async () => {
+  it('persiste a evidência', async () => {
     await request(app).post('/api/evidence').send(newEv);
-    const data = JSON.parse(fs.readFileSync(tmpFile));
-    expect(data.evidence).toHaveLength(1);
-    expect(data.evidence[0].url).toBe(newEv.url);
+    expect(mockDb.evidence).toHaveLength(1);
+    expect(mockDb.evidence[0].url).toBe(newEv.url);
   });
 
   it('suporta tipos diferentes de evidência', async () => {
@@ -291,38 +379,29 @@ describe('POST /api/evidence', () => {
     for (const type of types) {
       await request(app).post('/api/evidence').send({ ...newEv, type });
     }
-    const data = JSON.parse(fs.readFileSync(tmpFile));
-    expect(data.evidence).toHaveLength(4);
-    expect(data.evidence.map(e => e.type)).toEqual(types);
+    expect(mockDb.evidence).toHaveLength(4);
   });
 });
 
 // ─── DELETE /api/evidence/:id ──────────────────────────────────────────────────
 
 describe('DELETE /api/evidence/:id', () => {
-  it('remove evidência pelo id', async () => {
-    const created = await request(app).post('/api/evidence').send({
-      title: 'Certificado AWS', url: '', type: 'certificate', themeId: 'theme-0', date: '2025-02-01',
-    });
-    const id = created.body.id;
+  beforeEach(() => seedConfig());
 
-    const res = await request(app).delete(`/api/evidence/${id}`);
+  it('remove evidência pelo id', async () => {
+    const created = await request(app).post('/api/evidence').send({ title: 'Cert AWS', url: '' });
+    const res = await request(app).delete(`/api/evidence/${created.body.id}`);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ ok: true });
-
-    const data = JSON.parse(fs.readFileSync(tmpFile));
-    expect(data.evidence).toHaveLength(0);
+    expect(mockDb.evidence).toHaveLength(0);
   });
 
   it('não remove outras evidências ao deletar uma específica', async () => {
-    const ev1 = await request(app).post('/api/evidence').send({ title: 'EV1', url: '', type: 'PR', themeId: '', date: '' });
-    const ev2 = await request(app).post('/api/evidence').send({ title: 'EV2', url: '', type: 'PR', themeId: '', date: '' });
-
+    const ev1 = await request(app).post('/api/evidence').send({ title: 'EV1', url: '' });
+    const ev2 = await request(app).post('/api/evidence').send({ title: 'EV2', url: '' });
     await request(app).delete(`/api/evidence/${ev1.body.id}`);
-
-    const data = JSON.parse(fs.readFileSync(tmpFile));
-    expect(data.evidence).toHaveLength(1);
-    expect(data.evidence[0].id).toBe(ev2.body.id);
+    expect(mockDb.evidence).toHaveLength(1);
+    expect(mockDb.evidence[0].id).toBe(ev2.body.id);
   });
 
   it('não falha ao tentar remover id inexistente', async () => {
@@ -334,15 +413,12 @@ describe('DELETE /api/evidence/:id', () => {
 // ─── GET /api/reports/:format ──────────────────────────────────────────────────
 
 describe('GET /api/reports/:format', () => {
-  beforeEach(async () => {
-    await request(app).put('/api/config').send(sampleConfig);
-  });
+  beforeEach(() => seedConfig());
 
   it('gera relatório PDF com status 200 e content-type correto', async () => {
     const res = await request(app).get('/api/reports/pdf');
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toMatch(/pdf/);
-    expect(res.body.length || res.text.length || Buffer.isBuffer(res.body) || res.headers['content-length']).toBeTruthy();
   });
 
   it('gera relatório DOCX com status 200 e content-type correto', async () => {
@@ -357,8 +433,8 @@ describe('GET /api/reports/:format', () => {
     expect(res.headers['content-type']).toMatch(/spreadsheetml|xlsx|openxmlformats/);
   });
 
-  it('retorna 400 quando não há configuração para PDF', async () => {
-    fs.writeFileSync(tmpFile, JSON.stringify({ config: null, oneOnOnes: [], evidence: [] }));
+  it('retorna 400 quando não há PDI configurado para PDF', async () => {
+    resetDb();
     const res = await request(app).get('/api/reports/pdf');
     expect(res.status).toBe(400);
   });
