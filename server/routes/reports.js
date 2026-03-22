@@ -12,7 +12,7 @@ const STATUS_LABELS = { planned: 'Planejado', 'in-progress': 'Em Progresso', don
 const TYPE_LABELS   = { normal: 'Checkpoint', bonus: 'Bônus', setback: 'Retrocesso', milestone: 'Milestone', start: 'Início' };
 
 function getUserId(req) {
-  return req.clerkUserId || req.headers['x-dev-user-id'] || 'dev-user';
+  return req.auth?.userId || req.headers['x-dev-user-id'] || 'dev-user';
 }
 
 async function loadReportData(req) {

@@ -151,5 +151,5 @@ const App = (() => {
   return { init, setData };
 })();
 
-// Inicializa ao carregar
-window.addEventListener('DOMContentLoaded', () => App.init());
+// App is initialized by auth.js after authentication is confirmed
+// window.addEventListener('DOMContentLoaded', () => App.init()); — moved to auth.js

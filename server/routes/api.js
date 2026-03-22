@@ -53,7 +53,7 @@ async function buildDataPayload(pdiId) {
 // req.clerkUserId is injected by the requireAuth middleware (added in feature/auth).
 // During this feature we fall back to a dev placeholder.
 function getUserId(req) {
-  return req.clerkUserId || req.headers['x-dev-user-id'] || 'dev-user';
+  return req.auth?.userId || req.headers['x-dev-user-id'] || 'dev-user';
 }
 
 async function getActivePdi(userId) {
