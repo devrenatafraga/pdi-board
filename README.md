@@ -1,63 +1,36 @@
 # 🎲 PDI Board
 
-App web estilo jogo de tabuleiro para acompanhar seu **Plano de Desenvolvimento Individual**.
+App web estilo jogo de tabuleiro para acompanhar seu **Plano de Desenvolvimento Individual** (PDI), construído com **Node.js + Express** no backend e **JS/HTML/CSS** no frontend.
 
-## Funcionalidades
+## 🚀 Visão geral do projeto
 
-- 🎨 **3 trilhas temáticas** com cores personalizáveis  
-- 📅 **8 checkpoints por tema** (2 por mês, 4 meses)  
-- 🏠 **Casas especiais**: Start 🚀, Bônus 🎁, Retrocesso ⚠️, Milestone 🏆  
-- 🎯 **Peão arrastável** ao longo da trilha  
-- 📋 **Modal de checkpoint**: editar título, status, pontos e notas  
-- 🏆 **Placar geral** com histórico de reuniões 1:1  
-- 📌 **Parede de Evidências**: links de PRs, certificados, elogios  
-- 💾 **Persistência** em arquivo JSON no servidor  
+- Backend: `server/` com rota API REST e layer de repositório para dados.
+- Frontend: `client/` com UI no browser e consumo de API via `fetch`.
+- Persistência: `server/data.json` e suporte de migração em SQL (se DB relacional estiver configurado).
+- Testes: `server/__tests__/` com `jest` + `supertest`.
 
-## Pré-requisitos
-
-- [Node.js](https://nodejs.org/) v18 ou superior
-
-## Instalação
-
-```bash
-# Clone ou acesse o diretório do projeto
-cd pdi-board
-
-# Instale as dependências
-npm install
-```
-
-## Como rodar
-
-```bash
-npm start
-```
-
-Acesse em: **http://localhost:3000**
-
-Para desenvolvimento com hot reload:
-```bash
-npm run dev
-```
-
-## Primeiro acesso
-
-Ao abrir o app pela primeira vez, o **wizard de setup** será exibido:
-
-1. **Informações do PDI**: nome e data de início  
-2. **Temas**: defina os 3 temas (nome + cor)  
-3. **Checkpoints**: nomeie os 8 checkpoints de cada tema  
-
-Após o setup, o tabuleiro é gerado automaticamente.
-
-## Estrutura do projeto
+## 📁 Estrutura do projeto
 
 ```
 pdi-board/
 ├── server/
-│   ├── index.js          # Express server (porta 3000)
-│   ├── data.json         # Dados persistidos (auto-criado)
-│   └── routes/api.js     # API REST
+│   ├── index.js
+│   ├── data.json
+│   ├── routes/
+│   │   ├── api.js
+│   │   └── reports.js
+│   ├── db/
+│   │   ├── pool.js
+│   │   ├── migrations/001_initial.sql
+│   │   └── repositories/
+│   │       ├── checkpointRepo.js
+│   │       ├── evidenceRepo.js
+│   │       ├── oneOnOneRepo.js
+│   │       ├── pdiRepo.js
+│   │       └── themeRepo.js
+│   └── __tests__/
+│       ├── api.test.js
+│       └── repositories.test.js
 ├── client/
 │   ├── index.html
 │   ├── css/
@@ -65,23 +38,106 @@ pdi-board/
 │   │   ├── board.css
 │   │   └── scoreboard.css
 │   └── js/
-│       ├── api.js        # Wrapper fetch
-│       ├── app.js        # Inicialização e navegação
-│       ├── setup.js      # Wizard de configuração
-│       ├── board.js      # Renderização das trilhas
-│       ├── token.js      # Drag-and-drop do peão
-│       ├── scoreboard.js # Placar e histórico 1:1s
-│       └── evidence.js   # Parede de evidências
-└── package.json
+│       ├── api.js
+│       ├── app.js
+│       ├── board.js
+│       ├── evidence.js
+│       ├── reports.js
+│       ├── scoreboard.js
+│       ├── setup.js
+│       └── token.js
+├── package.json
+├── docker-compose.yml
+└── README.md
 ```
 
-## Dinâmica quinzenal dos 1:1s
+## 🧩 Dependências principais
 
-1. **Antes**: Revise o board e prepare os pontos do checkpoint  
-2. **Durante**: Abra o tema, mova o peão, atualize status/pontos/notas  
-3. **Após**: Registre o 1:1 no Placar (**🏆 Placar** → **+ Registrar 1:1**)  
+- `express` (server)
+- `body-parser` (req body parsing se necessário)
+- `jest` (testes unitários e integrados)
+- `supertest` (testes de rotas HTTP)
+- `sqlite3` ou `pg` (DB driver)
+- `knex` ou ORM leve opcional
+- `nodemon` (dev)
 
-## API REST
+## ⚙️ Pré-requisitos
+
+- Node.js v18+
+
+## 📥 Instalação
+
+```bash
+cd pdi-board
+npm install
+```
+
+## ▶️ Execução
+
+```bash
+npm start
+```
+
+Acessar: `http://localhost:3000`
+
+```bash
+npm run dev
+```
+
+## 🛠️ Boas práticas de backend Node.js
+
+- Arquitetura em camadas (rotas, serviços, repositórios)
+- `async/await` + `try/catch` para controle de erros
+- Resposta uniforme via `HttpError` (status, message)
+- Configuração via `process.env` + `dotenv` + validação (`joi`, `zod`)
+- Fechamento explícito de conexões (`pool.end()`)
+- Evitar mutação global (`Object.freeze` em constantes)
+- Separar lógica de negócios de handlers Express (funções puras testáveis)
+
+## 🌐 Padrões de HTTP client
+
+- Usar `fetch` ou `axios` com:
+  - timeout e retry configuráveis
+  - tratamento de status 2xx/4xx/5xx
+  - parsing JSON seguro e fallback de erro
+- Implementar wrapper em `client/js/api.js` como:
+  - `getThemes`, `createCheckpoint`, `updateEvidence`, `fetchReport`
+- Camada de interceptors (auth, logging, refresh token)
+- DTOs/data mappers para separar contrato API de estado da UI
+
+## 🔁 Programação assíncrona e funcional
+
+- Paralelismo com `Promise.all` / `Promise.allSettled`
+- Evitar `forEach` com `async` (usar `for...of` ou `map` + `Promise.all`)
+- Funções puras e composição (`compose`, `pipe`)
+- Imutabilidade local (`{ ...state, campo: valor }`)
+- Higher-order functions para retry, cache, validação
+
+## 🧪 Testes unitários
+
+- `jest` para funções puras: mappers, validadores e regras de negócio
+- Mock de dependências (`jest.mock`) para repositórios e DB
+- Cobertura de branches de sucesso e erro
+- `describe.each` para parametrização de casos
+
+## 🔗 Testes integrados
+
+- Roteamento HTTP com `supertest`
+- App Express importado para teste com `beforeAll/afterAll`
+- DB em memória ou transações rollback entre testes
+- Verificar contratos:
+  - status: `200`, `201`, `400`, `404`, `500`
+  - headers `Content-Type: application/json`
+  - payload e mensagens de erro
+
+## 🧹 Qualidade de código
+
+- `eslint`, `prettier` para formatação
+- `husky` + `lint-staged` em pré-commit (opcional)
+- Documentar com `README.md`, `API docs` e exemplos `curl`
+- Migrations e rollback para esquema de banco
+
+## 🧾 API REST
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
@@ -94,11 +150,17 @@ pdi-board/
 | POST | `/api/evidence` | Adiciona evidência |
 | DELETE | `/api/evidence/:id` | Remove evidência |
 
-## Configuração do SonarCloud
+## 🔍 SonarCloud
 
-1. Acesse [sonarcloud.io](https://sonarcloud.io) e crie/importe o projeto `devrenatafraga/pdi-board`
-2. Em **Administration → Analysis Method**, **desative o "Automatic Analysis"** (o CI fará a análise)
-3. Copie o **SONAR_TOKEN** em **My Account → Security → Generate Token**
-4. Adicione o token no repositório GitHub em **Settings → Secrets and variables → Actions → New secret** com o nome `SONAR_TOKEN`
+1. Criar projeto `devrenatafraga/pdi-board` no SonarCloud
+2. Gerar `SONAR_TOKEN` e adicionar no GitHub Secrets
+3. Workflow de CI faz análise em push/PR
 
-Após isso, o workflow de CI enviará a análise automaticamente em cada push/PR.
+---
+
+## 💡 Uso rápido do app
+
+1. Navegar para setup inicial (nome, data, temas, checkpoints)
+2. Atualizar checkpoints durante o PDI
+3. Registrar 1:1s e evidências
+4. Ver placar de progresso e relatório
