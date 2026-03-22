@@ -15,8 +15,7 @@
       "**/__tests__/**/*.test.js"
     ],
     "collectCoverageFrom": [
-      "server/**/*.js",
-      "!server/index.js"
+      "server/**/*.js"
     ],
     "coverageReporters": [
       "lcov",
@@ -26,6 +25,7 @@
     "coverageDirectory": "coverage"
   },
   "dependencies": {
+    "@clerk/clerk-sdk-node": "^4.13.23",
     "cors": "^2.8.5",
     "docx": "^9.6.0",
     "dotenv": "^17.3.1",

@@ -166,6 +166,40 @@ async function seedConfig() {
   return request(app).put('/api/config').send(sampleConfig);
 }
 
+// ─── getUserId — auth branches ────────────────────────────────────────────────
+
+describe('getUserId — autenticação via req.auth.userId', () => {
+  it('usa req.auth.userId quando disponível (Clerk auth)', async () => {
+    // Monta app que injeta req.auth em vez do header
+    const pdiRepo = require('../db/repositories/pdiRepo');
+    pdiRepo.findByUser.mockResolvedValue([]);
+
+    const apiRouter = require('../routes/api');
+    const clerkApp = express();
+    clerkApp.use(express.json());
+    clerkApp.use((req, _res, next) => { req.auth = { userId: 'clerk-user-99' }; next(); });
+    clerkApp.use('/api', apiRouter);
+
+    const res = await request(clerkApp).get('/api/data');
+    expect(res.status).toBe(200);
+    expect(pdiRepo.findByUser).toHaveBeenCalledWith('clerk-user-99');
+  });
+
+  it('usa x-dev-user-id quando req.auth não está presente', async () => {
+    const pdiRepo = require('../db/repositories/pdiRepo');
+    pdiRepo.findByUser.mockResolvedValue([]);
+
+    const apiRouter = require('../routes/api');
+    const devApp = express();
+    devApp.use(express.json());
+    devApp.use('/api', apiRouter);
+
+    const res = await request(devApp).get('/api/data').set('x-dev-user-id', 'dev-user-header');
+    expect(res.status).toBe(200);
+    expect(pdiRepo.findByUser).toHaveBeenCalledWith('dev-user-header');
+  });
+});
+
 // ─── GET /api/data ─────────────────────────────────────────────────────────────
 
 describe('GET /api/data', () => {

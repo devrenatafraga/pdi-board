@@ -10,6 +10,17 @@
 </head>
 <body>
 
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen" class="hidden">
+    <div class="login-card">
+      <div class="login-logo">🎲</div>
+      <h1 class="login-title">PDI Board</h1>
+      <p class="login-subtitle">Seu plano de desenvolvimento individual gamificado</p>
+      <div id="clerk-sign-in"></div>
+      <p class="login-hint">Entre com sua conta Google para acessar seu PDI de forma segura.</p>
+    </div>
+  </div>
+
   <!-- SETUP WIZARD (shown on first access) -->
   <div id="setup-overlay" class="hidden">
     <div class="setup-modal">
@@ -23,7 +34,7 @@
     <!-- NAV -->
     <nav class="nav">
       <div class="nav-brand">🎲 PDI Board</div>
-      <ul class="nav-tabs">
+      <ul class="nav-tabs" id="nav-tabs">
         <li><button class="nav-btn active" data-frame="instructions">📋 Regras</button></li>
         <li><button class="nav-btn" data-frame="board-0">🟦 Tema 1</button></li>
         <li><button class="nav-btn" data-frame="board-1">🟩 Tema 2</button></li>
@@ -32,7 +43,10 @@
         <li><button class="nav-btn" data-frame="evidence">📌 Evidências</button></li>
         <li><button class="nav-btn" data-frame="reports">📊 Relatórios</button></li>
       </ul>
-      <button class="btn btn-ghost btn-sm" id="btn-reset-config" title="Reconfigurar">⚙️</button>
+      <div class="nav-actions">
+        <button class="btn btn-ghost btn-sm" id="btn-reset-config" title="Reconfigurar">⚙️</button>
+        <div class="nav-user" id="nav-user"></div>
+      </div>
     </nav>
 
     <!-- FRAMES -->
@@ -96,6 +110,9 @@
     </div>
   </div>
 
+  <!-- Clerk JS (loaded async; CLERK_PUBLISHABLE_KEY injected by auth.js) -->
+  <script>window.__clerk_publishable_key = '%%CLERK_PUBLISHABLE_KEY%%';</script>
+  <script src="js/auth.js"></script>
   <script src="js/api.js"></script>
   <script src="js/setup.js"></script>
   <script src="js/board.js"></script>
