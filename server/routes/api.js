@@ -10,6 +10,20 @@ const router = express.Router();
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 // Builds the data shape the frontend expects from a pdi row + relations
+function normalizeCheckpoint(cp) {
+  return {
+    id: cp.id,
+    title: cp.title,
+    month: cp.month,
+    biweekly: cp.biweekly,
+    type: cp.type,
+    status: cp.status,
+    points: cp.points,
+    notes: cp.notes,
+    links: cp.links ?? [],
+  };
+}
+
 async function buildDataPayload(pdiId) {
   const [themes, oneOnOnes, evidence] = await Promise.all([
     themeRepo.findByPdi(pdiId),
@@ -31,21 +45,7 @@ async function buildDataPayload(pdiId) {
     })
   );
 
-  return { config: null, oneOnOnes, evidence };
-
-  function normalizeCheckpoint(cp) {
-    return {
-      id: cp.id,
-      title: cp.title,
-      month: cp.month,
-      biweekly: cp.biweekly,
-      type: cp.type,
-      status: cp.status,
-      points: cp.points,
-      notes: cp.notes,
-      links: cp.links ?? [],
-    };
-  }
+  return { config: null, oneOnOnes, evidence, themesWithCheckpoints };
 }
 
 // Returns the active PDI for the authenticated user (or null)
@@ -123,7 +123,7 @@ router.put('/config', async (req, res) => {
 
     let pdi = await getActivePdi(userId);
     if (pdi) {
-      pdi = await pdiRepo.update(pdi.id, userId, { title, startDate });
+      await pdiRepo.update(pdi.id, userId, { title, startDate });
     } else {
       pdi = await pdiRepo.create(userId, { title, startDate });
     }
