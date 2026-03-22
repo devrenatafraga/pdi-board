@@ -36,25 +36,27 @@ const Scoreboard = (() => {
         }).join('')}
 
         <!-- Total card -->
-        <div class="score-card" style="border-top-color:var(--accent)">
-          <div class="score-card-theme">Total Geral</div>
-          <div class="score-card-name">Todos os Temas</div>
-          <div class="score-card-points" style="color:var(--accent)">
-            ${config.themes.reduce((s, t) => s + t.checkpoints.reduce((ss, c) => ss + (c.points || 0), 0), 0)}
-          </div>
-          <div class="text-muted text-sm">
-            ${config.themes.reduce((s, t) => s + t.checkpoints.filter(c => c.status === 'done').length, 0)}/24 checkpoints concluídos
-          </div>
-          <div class="score-card-progress">
-            <div class="score-card-progress-label">
-              <span>Progresso Total</span>
-              <span>${Math.round(config.themes.reduce((s, t) => s + t.checkpoints.filter(c => c.status === 'done').length, 0) / 24 * 100)}%</span>
+        ${(() => {
+          const totalDone = config.themes.reduce((s, t) => s + t.checkpoints.filter(c => c.status === 'done').length, 0);
+          const totalCps = config.themes.reduce((s, t) => s + t.checkpoints.length, 0);
+          const totalPts = config.themes.reduce((s, t) => s + t.checkpoints.reduce((ss, c) => ss + (c.points || 0), 0), 0);
+          const pct = totalCps ? Math.round(totalDone / totalCps * 100) : 0;
+          return `
+          <div class="score-card" style="border-top-color:var(--accent)">
+            <div class="score-card-theme">Total Geral</div>
+            <div class="score-card-name">Todos os Temas</div>
+            <div class="score-card-points" style="color:var(--accent)">${totalPts}</div>
+            <div class="text-muted text-sm">${totalDone}/${totalCps} checkpoints concluídos</div>
+            <div class="score-card-progress">
+              <div class="score-card-progress-label">
+                <span>Progresso Total</span><span>${pct}%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-bar-fill" style="width:${pct}%;background:var(--accent)"></div>
+              </div>
             </div>
-            <div class="progress-bar">
-              <div class="progress-bar-fill" style="width:${Math.round(config.themes.reduce((s, t) => s + t.checkpoints.filter(c => c.status === 'done').length, 0) / 24 * 100)}%;background:var(--accent)"></div>
-            </div>
-          </div>
-        </div>
+          </div>`;
+        })()}
       </div>
 
       <!-- History -->
