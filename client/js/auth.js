@@ -67,7 +67,7 @@ const Auth = (() => {
     const screen = document.getElementById('login-screen');
     screen.classList.remove('hidden');
     const btn = document.getElementById('btn-google-signin');
-    if (btn) btn.onclick = () => clerk.openSignIn();
+    if (btn) btn.onclick = () => clerk.redirectToSignIn({ redirectUrl: window.location.href });
   }
 
   function _startApp(user) {
