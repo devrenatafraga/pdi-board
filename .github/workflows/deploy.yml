@@ -28,7 +28,8 @@ jobs:
       - name: Trigger Render deploy
         if: success()
         run: |
-          curl -s -o /dev/null -w "%{http_code}" \
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             --request POST \
-            --url "https://api.render.com/deploy/srv-${{ secrets.RENDER_SERVICE_ID }}?key=${{ secrets.RENDER_DEPLOY_KEY }}" \
-            | grep -q "^2" && echo "Deploy triggered" || (echo "Deploy trigger failed" && exit 1)
+            --url "https://api.render.com/deploy/srv-${{ secrets.RENDER_SERVICE_ID }}?key=${{ secrets.RENDER_DEPLOY_KEY }}")
+          echo "Render response code: $HTTP_CODE"
+          echo "$HTTP_CODE" | grep -q "^2" && echo "Deploy triggered" || (echo "Deploy trigger failed" && exit 1)
