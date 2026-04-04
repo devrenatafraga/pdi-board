@@ -47,12 +47,27 @@ app.get('*', (req, res) => {
 
 // Global error handler (must be last)
 app.use((err, req, res, next) => {
+  const isDev = process.env.NODE_ENV === 'development';
+  const status = err.status || 500;
+
   logger.error('Unhandled error', {
     message: err && err.message,
+    code: err && err.code,
+    status: status,
     stack: err && err.stack,
     path: req.path,
     method: req.method,
   });
+
+  // Return more detailed error info in development
+  if (isDev) {
+    return res.status(status).json({
+      error: err && err.message || 'Internal server error',
+      code: err && err.code,
+      ...(err && err.stack && { stack: err.stack }),
+    });
+  }
+
   res.status(500).json({ error: 'Internal server error' });
 });
 

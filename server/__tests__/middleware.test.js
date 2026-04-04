@@ -1,23 +1,25 @@
-const mockMiddleware = jest.fn();
+const mockClerkMiddleware = jest.fn();
 
 jest.mock('@clerk/clerk-sdk-node', () => ({
-  ClerkExpressRequireAuth: jest.fn(() => mockMiddleware),
+  ClerkExpressRequireAuth: jest.fn(() => mockClerkMiddleware),
+}));
+
+jest.mock('../lib/logger', () => ({
+  error: jest.fn(),
 }));
 
 describe('requireAuth middleware', () => {
   let requireAuth;
   let ClerkExpressRequireAuth;
+  let logger;
 
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
-    mockMiddleware.mockReset();
-
-    jest.mock('@clerk/clerk-sdk-node', () => ({
-      ClerkExpressRequireAuth: jest.fn(() => mockMiddleware),
-    }));
+    mockClerkMiddleware.mockReset();
 
     ({ ClerkExpressRequireAuth } = require('@clerk/clerk-sdk-node'));
+    logger = require('../lib/logger');
     requireAuth = require('../middleware/requireAuth');
   });
 
@@ -29,14 +31,57 @@ describe('requireAuth middleware', () => {
     expect(typeof requireAuth).toBe('function');
   });
 
-  it('delegates directly to Clerk middleware', () => {
+  it('wraps Clerk middleware and calls next on success', () => {
     const req = { headers: {} };
     const res = {};
     const next = jest.fn();
 
+    // Mock Clerk middleware to call callback with no error
+    mockClerkMiddleware.mockImplementation((req, res, callback) => {
+      callback(null);
+    });
+
     requireAuth(req, res, next);
 
-    expect(mockMiddleware).toHaveBeenCalledTimes(1);
-    expect(mockMiddleware).toHaveBeenCalledWith(req, res, next);
+    expect(mockClerkMiddleware).toHaveBeenCalledTimes(1);
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns 401 when Clerk middleware returns an error', () => {
+    const req = { headers: {} };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const next = jest.fn();
+    const error = new Error('Invalid token');
+
+    // Mock Clerk middleware to call callback with an error
+    mockClerkMiddleware.mockImplementation((req, res, callback) => {
+      callback(error);
+    });
+
+    requireAuth(req, res, next);
+
+    expect(mockClerkMiddleware).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Unauthorized' });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('handles exceptions thrown by Clerk middleware', () => {
+    const req = { headers: {} };
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    const next = jest.fn();
+
+    // Mock Clerk middleware to throw an exception
+    mockClerkMiddleware.mockImplementation(() => {
+      throw new Error('Unexpected error');
+    });
+
+    requireAuth(req, res, next);
+
+    expect(mockClerkMiddleware).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Unauthorized' });
+    expect(next).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalled();
   });
 });

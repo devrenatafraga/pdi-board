@@ -6,6 +6,7 @@ const pdiRepo        = require('../db/repositories/pdiRepo');
 const themeRepo      = require('../db/repositories/themeRepo');
 const checkpointRepo = require('../db/repositories/checkpointRepo');
 const { getUserId } = require('../lib/authHelper');
+const logger = require('../lib/logger');
 const {
   STATUS_LABELS,
   TYPE_LABELS,
@@ -101,12 +102,15 @@ router.get('/pdf', async (req, res) => {
      doc.text(`Total de checkpoints concluídos: ${totalDone}/${totalCheckpoints}`);
      doc.text(`Total de pontos acumulados: ${totalPoints}`);
 
-     doc.end();
-   } catch (err) {
-     console.error('[PDF Report] Error:', err);
-     res.status(500).json({ error: 'Failed to generate PDF report' });
-   }
-});
+      doc.end();
+    } catch (err) {
+      logger.error('PDF report generation error', {
+        message: err && err.message,
+        stack: err && err.stack,
+      });
+      res.status(500).json({ error: 'Failed to generate PDF report' });
+    }
+  });
 
 // DOCX
 router.get('/docx', async (req, res) => {
@@ -160,12 +164,15 @@ router.get('/docx', async (req, res) => {
 
      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
      res.setHeader('Content-Disposition', 'attachment; filename="pdi-report.docx"');
-     res.send(buffer);
-   } catch (err) {
-     console.error('[DOCX Report] Error:', err);
-     res.status(500).json({ error: 'Failed to generate DOCX report' });
-   }
-});
+      res.send(buffer);
+    } catch (err) {
+      logger.error('DOCX report generation error', {
+        message: err && err.message,
+        stack: err && err.stack,
+      });
+      res.status(500).json({ error: 'Failed to generate DOCX report' });
+    }
+  });
 
 // XLSX
 router.get('/xlsx', async (req, res) => {
@@ -223,11 +230,14 @@ router.get('/xlsx', async (req, res) => {
      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
      res.setHeader('Content-Disposition', 'attachment; filename="pdi-report.xlsx"');
      await workbook.xlsx.write(res);
-     res.end();
-   } catch (err) {
-     console.error('[XLSX Report] Error:', err);
-     res.status(500).json({ error: 'Failed to generate XLSX report' });
-   }
-});
+      res.end();
+    } catch (err) {
+      logger.error('XLSX report generation error', {
+        message: err && err.message,
+        stack: err && err.stack,
+      });
+      res.status(500).json({ error: 'Failed to generate XLSX report' });
+    }
+  });
 
 module.exports = router;

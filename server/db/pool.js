@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { Pool } = require('pg');
+const logger = require('../lib/logger');
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is required');
@@ -11,7 +12,7 @@ const pool = new Pool({
 });
 
 pool.on('error', (err) => {
-  console.error('[Pool] Unexpected error on idle client', err);
+  logger.error('Unexpected database pool error', { message: err && err.message });
 });
 
 module.exports = pool;
