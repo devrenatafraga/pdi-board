@@ -63,19 +63,40 @@ const Auth = (() => {
     });
   }
 
-  function _loadClerkScript(publishableKey) {
-    return new Promise((resolve, reject) => {
-      const existing = document.getElementById('clerk-js');
-      if (existing) { resolve(); return; }
-      const script = document.createElement('script');
-      script.id = 'clerk-js';
-      script.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
-      script.setAttribute('data-clerk-publishable-key', publishableKey);
-      script.onload = resolve;
-      script.onerror = reject;
-      document.head.appendChild(script);
-    });
-  }
+   function _loadClerkScript(publishableKey) {
+     return new Promise((resolve, reject) => {
+       const existing = document.getElementById('clerk-js');
+       if (existing) { resolve(); return; }
+
+       // Suppress Clerk development key warnings in dev mode
+       const originalWarn = console.warn;
+       if (publishableKey.startsWith('pk_test_')) {
+         console.warn = function(...args) {
+           // Suppress Clerk development keys warning
+           if (args[0] && typeof args[0] === 'string' && args[0].includes('development keys')) {
+             return;
+           }
+           originalWarn.apply(console, args);
+         };
+       }
+
+       const script = document.createElement('script');
+       script.id = 'clerk-js';
+       script.src = 'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js';
+       script.setAttribute('data-clerk-publishable-key', publishableKey);
+
+       script.onload = () => {
+         // Restore original console.warn after Clerk is loaded
+         if (publishableKey.startsWith('pk_test_')) {
+           console.warn = originalWarn;
+         }
+         resolve();
+       };
+
+       script.onerror = reject;
+       document.head.appendChild(script);
+     });
+   }
 
   function _showLogin(clerk) {
     const screen = document.getElementById('login-screen');
