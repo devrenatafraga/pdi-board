@@ -1,11 +1,29 @@
 const request = require('supertest');
 const express = require('express');
 
-// ─── Setup Mocks ───────────────────────────────────────────────────────────────
+// ─── Setup Mocks ───────────────────────────────────────────────────────────
 
-jest.mock('../db/repositories/pdiRepo');
-jest.mock('../db/repositories/themeRepo');
-jest.mock('../db/repositories/checkpointRepo');
+jest.mock('../db/repositories/pdiRepo', () => ({
+  findByUser: jest.fn(),
+  findById: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+}));
+
+jest.mock('../db/repositories/themeRepo', () => ({
+  findByPdi: jest.fn(),
+  findById: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  remove: jest.fn(),
+}));
+
+jest.mock('../db/repositories/checkpointRepo', () => ({
+  findByTheme: jest.fn(),
+  findById: jest.fn(),
+  bulkCreate: jest.fn(),
+  update: jest.fn(),
+}));
 
 const pdiRepo = require('../db/repositories/pdiRepo');
 const themeRepo = require('../db/repositories/themeRepo');
@@ -27,7 +45,7 @@ let app;
 
 beforeEach(() => {
   resetDb();
-  jest.resetModules();
+  jest.clearAllMocks();
 
   const pdiRepo = require('../db/repositories/pdiRepo');
   const themeRepo = require('../db/repositories/themeRepo');

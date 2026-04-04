@@ -24,17 +24,37 @@ function normalizeCheckpoint(cp) {
   };
 }
 
-
 async function getActivePdi(userId) {
   const pdis = await pdiRepo.findByUser(userId);
   return pdis[0] || null;
 }
 
+// Middleware helper: ensure user is authenticated
+function ensureAuth(req, res) {
+  const userId = getUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return null;
+  }
+  return userId;
+}
+
+// Middleware helper: ensure PDI exists
+async function ensurePdi(userId, res) {
+  const pdi = await getActivePdi(userId);
+  if (!pdi) {
+    res.status(400).json({ error: 'PDI not found' });
+    return null;
+  }
+  return pdi;
+}
+
 // GET /api/data
 router.get('/data', async (req, res) => {
   try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const userId = ensureAuth(req, res);
+    if (!userId) return;
+
     const pdi = await getActivePdi(userId);
     if (!pdi) return res.json({ config: null, oneOnOnes: [], evidence: [] });
 
@@ -68,7 +88,10 @@ router.get('/data', async (req, res) => {
       evidence,
     });
   } catch (err) {
-    logger.error('GET /data failed', { message: err && err.message });
+    logger.error('GET /data failed', {
+      message: err && err.message,
+      stack: err && err.stack,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -76,8 +99,9 @@ router.get('/data', async (req, res) => {
 // PUT /api/config
 router.put('/config', async (req, res) => {
   try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const userId = ensureAuth(req, res);
+    if (!userId) return;
+
     const { title, startDate, themes } = req.body;
 
     let pdi = await getActivePdi(userId);
@@ -102,7 +126,10 @@ router.put('/config', async (req, res) => {
 
     res.json({ ok: true });
   } catch (err) {
-    logger.error('PUT /config failed', { message: err && err.message });
+    logger.error('PUT /config failed', {
+      message: err && err.message,
+      stack: err && err.stack,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -119,7 +146,11 @@ router.put('/themes/:id', async (req, res) => {
     if (!theme) return res.status(404).json({ error: 'Theme not found' });
     res.json({ ok: true });
   } catch (err) {
-    logger.error('PUT /themes/:id failed', { message: err && err.message, themeId: req.params.id });
+    logger.error('PUT /themes/:id failed', {
+      message: err && err.message,
+      stack: err && err.stack,
+      themeId: req.params.id,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -133,6 +164,7 @@ router.put('/checkpoints/:themeId/:id', async (req, res) => {
   } catch (err) {
     logger.error('PUT /checkpoints/:themeId/:id failed', {
       message: err && err.message,
+      stack: err && err.stack,
       themeId: req.params.themeId,
       checkpointId: req.params.id,
     });
@@ -143,14 +175,19 @@ router.put('/checkpoints/:themeId/:id', async (req, res) => {
 // POST /api/oneOnOnes
 router.post('/oneOnOnes', async (req, res) => {
   try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-    const pdi = await getActivePdi(userId);
-    if (!pdi) return res.status(400).json({ error: 'PDI not found' });
+    const userId = ensureAuth(req, res);
+    if (!userId) return;
+
+    const pdi = await ensurePdi(userId, res);
+    if (!pdi) return;
+
     const entry = await oneOnOneRepo.create(pdi.id, req.body);
     res.status(201).json(entry);
   } catch (err) {
-    logger.error('POST /oneOnOnes failed', { message: err && err.message });
+    logger.error('POST /oneOnOnes failed', {
+      message: err && err.message,
+      stack: err && err.stack,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -158,14 +195,19 @@ router.post('/oneOnOnes', async (req, res) => {
 // DELETE /api/oneOnOnes/:id
 router.delete('/oneOnOnes/:id', async (req, res) => {
   try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-    const pdi = await getActivePdi(userId);
-    if (!pdi) return res.status(400).json({ error: 'PDI not found' });
+    const userId = ensureAuth(req, res);
+    if (!userId) return;
+
+    const pdi = await ensurePdi(userId, res);
+    if (!pdi) return;
+
     await oneOnOneRepo.remove(req.params.id, pdi.id);
     res.json({ ok: true });
   } catch (err) {
-    logger.error('DELETE /oneOnOnes/:id failed', { message: err && err.message, entryId: req.params.id });
+    logger.error('DELETE /oneOnOnes/:id failed', {
+      message: err && err.message,
+      stack: err && err.stack,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -173,14 +215,19 @@ router.delete('/oneOnOnes/:id', async (req, res) => {
 // POST /api/evidence
 router.post('/evidence', async (req, res) => {
   try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-    const pdi = await getActivePdi(userId);
-    if (!pdi) return res.status(400).json({ error: 'PDI not found' });
+    const userId = ensureAuth(req, res);
+    if (!userId) return;
+
+    const pdi = await ensurePdi(userId, res);
+    if (!pdi) return;
+
     const entry = await evidenceRepo.create(pdi.id, req.body);
     res.status(201).json(entry);
   } catch (err) {
-    logger.error('POST /evidence failed', { message: err && err.message });
+    logger.error('POST /evidence failed', {
+      message: err && err.message,
+      stack: err && err.stack,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -188,14 +235,19 @@ router.post('/evidence', async (req, res) => {
 // DELETE /api/evidence/:id
 router.delete('/evidence/:id', async (req, res) => {
   try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-    const pdi = await getActivePdi(userId);
-    if (!pdi) return res.status(400).json({ error: 'PDI not found' });
+    const userId = ensureAuth(req, res);
+    if (!userId) return;
+
+    const pdi = await ensurePdi(userId, res);
+    if (!pdi) return;
+
     await evidenceRepo.remove(req.params.id, pdi.id);
     res.json({ ok: true });
   } catch (err) {
-    logger.error('DELETE /evidence/:id failed', { message: err && err.message, evidenceId: req.params.id });
+    logger.error('DELETE /evidence/:id failed', {
+      message: err && err.message,
+      stack: err && err.stack,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });

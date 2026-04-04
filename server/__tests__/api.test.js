@@ -3,11 +3,39 @@ const express = require('express');
 
 // ─── Mocks declarados antes de qualquer import ────────────────────────────────
 
-jest.mock('../db/repositories/pdiRepo');
-jest.mock('../db/repositories/themeRepo');
-jest.mock('../db/repositories/checkpointRepo');
-jest.mock('../db/repositories/oneOnOneRepo');
-jest.mock('../db/repositories/evidenceRepo');
+jest.mock('../db/repositories/pdiRepo', () => ({
+  findByUser: jest.fn(),
+  findById: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+}));
+
+jest.mock('../db/repositories/themeRepo', () => ({
+  findByPdi: jest.fn(),
+  findById: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  remove: jest.fn(),
+}));
+
+jest.mock('../db/repositories/checkpointRepo', () => ({
+  findByTheme: jest.fn(),
+  findById: jest.fn(),
+  bulkCreate: jest.fn(),
+  update: jest.fn(),
+}));
+
+jest.mock('../db/repositories/oneOnOneRepo', () => ({
+  findByPdi: jest.fn(),
+  create: jest.fn(),
+  remove: jest.fn(),
+}));
+
+jest.mock('../db/repositories/evidenceRepo', () => ({
+  findByPdi: jest.fn(),
+  create: jest.fn(),
+  remove: jest.fn(),
+}));
 
 // ─── Estado em memória (resetado em beforeEach) ───────────────────────────────
 
@@ -27,9 +55,9 @@ let app;
 
 beforeEach(() => {
   resetDb();
-  jest.resetModules();
+  jest.clearAllMocks();
 
-  // Re-require após resetModules para pegar mocks frescos
+  // Reuse the module-scoped mocks
   const pdiRepo        = require('../db/repositories/pdiRepo');
   const themeRepo      = require('../db/repositories/themeRepo');
   const checkpointRepo = require('../db/repositories/checkpointRepo');

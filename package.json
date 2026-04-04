@@ -6,41 +6,8 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "npx nodemon server/index.js",
-    "test": "jest",
-    "test:coverage": "jest --coverage"
-  },
-  "jest": {
-    "projects": [
-      {
-        "displayName": "server",
-        "testEnvironment": "node",
-        "rootDir": ".",
-        "testMatch": [
-          "<rootDir>/server/__tests__/**/*.test.js"
-        ],
-        "collectCoverageFrom": [
-          "server/**/*.js",
-          "!server/__tests__/**"
-        ]
-      },
-      {
-        "displayName": "client",
-        "testEnvironment": "jsdom",
-        "rootDir": ".",
-        "testMatch": [
-          "<rootDir>/client/__tests__/**/*.test.js"
-        ],
-        "collectCoverageFrom": [
-          "client/js/**/*.js"
-        ]
-      }
-    ],
-    "coverageReporters": [
-      "lcov",
-      "text",
-      "clover"
-    ],
-    "coverageDirectory": "coverage"
+    "test": "jest --config .jestrc.json",
+    "test:coverage": "jest --config .jestrc.json --coverage"
   },
   "dependencies": {
     "@clerk/clerk-sdk-node": "5.1.6",
