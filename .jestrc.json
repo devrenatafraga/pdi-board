@@ -1,0 +1,41 @@
+{
+  "projects": [
+    {
+      "displayName": "server",
+      "testEnvironment": "node",
+      "rootDir": ".",
+      "testMatch": [
+        "<rootDir>/server/__tests__/**/*.test.js"
+      ],
+      "collectCoverageFrom": [
+        "server/**/*.js",
+        "!server/__tests__/**"
+      ],
+      "setupFilesAfterEnv": ["<rootDir>/server/__tests__/setup.js"],
+      "testTimeout": 10000,
+      "forceExit": true,
+      "detectOpenHandles": true,
+      "maxWorkers": "50%"
+    },
+    {
+      "displayName": "client",
+      "testEnvironment": "jsdom",
+      "rootDir": ".",
+      "testMatch": [
+        "<rootDir>/client/__tests__/**/*.test.js"
+      ],
+      "collectCoverageFrom": [
+        "client/js/**/*.js"
+      ],
+      "testTimeout": 10000,
+      "maxWorkers": "50%"
+    }
+  ],
+  "coverageReporters": [
+    "lcov",
+    "text",
+    "clover"
+  ],
+  "coverageDirectory": "coverage"
+}
+
