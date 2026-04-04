@@ -12,6 +12,8 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false,
   },
+  // Forçar IPv4 (Render/Supabase podem ter problemas com IPv6)
+  family: 4,
   // Timeouts mais robustos
   connectionTimeoutMillis: 8000,
   idleTimeoutMillis: 30000,
