@@ -27,9 +27,9 @@ let app;
 
 beforeEach(() => {
   resetDb();
-  jest.resetModules();
+  jest.clearAllMocks();
 
-  // Re-require após resetModules para pegar mocks frescos
+  // Reuse the module-scoped mocks
   const pdiRepo        = require('../db/repositories/pdiRepo');
   const themeRepo      = require('../db/repositories/themeRepo');
   const checkpointRepo = require('../db/repositories/checkpointRepo');

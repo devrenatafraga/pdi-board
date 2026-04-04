@@ -27,7 +27,7 @@ let app;
 
 beforeEach(() => {
   resetDb();
-  jest.resetModules();
+  jest.clearAllMocks();
 
   const pdiRepo = require('../db/repositories/pdiRepo');
   const themeRepo = require('../db/repositories/themeRepo');
