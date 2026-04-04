@@ -1,4 +1,5 @@
 const pool = require('../pool');
+const { buildUpdateQuery } = require('../../lib/queryBuilder');
 
 async function findByPdi(pdiId) {
   const { rows } = await pool.query(
@@ -23,14 +24,7 @@ async function create(pdiId, { name, color, position }) {
 
 async function update(id, fields) {
   const allowed = ['name', 'color', 'position', 'token_position'];
-  const sets = [];
-  const values = [];
-  allowed.forEach(key => {
-    if (fields[key] !== undefined) {
-      sets.push(`${key} = $${values.length + 1}`);
-      values.push(fields[key]);
-    }
-  });
+  const { sets, values } = buildUpdateQuery(fields, allowed);
   if (!sets.length) return findById(id);
   values.push(id);
   const { rows } = await pool.query(

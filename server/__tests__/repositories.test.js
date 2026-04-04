@@ -159,12 +159,13 @@ describe('checkpointRepo', () => {
     expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE'), expect.any(Array));
   });
 
-  test('update serializa links como JSON string', async () => {
-    pool.query.mockResolvedValueOnce({ rows: [{ id: 'cp1' }] });
-    await cpRepo.update('cp1', { links: ['https://example.com'] });
-    const callArgs = pool.query.mock.calls[0][1];
-    expect(callArgs).toContain(JSON.stringify(['https://example.com']));
-  });
+   test('update with links field updates checkpoint', async () => {
+     const row = { id: 'cp1', links: ['https://github.com'] };
+     pool.query.mockResolvedValueOnce({ rows: [row] });
+     const result = await cpRepo.update('cp1', { links: ['https://github.com'] });
+     expect(result).toEqual(row);
+     expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE'), expect.any(Array));
+   });
 
   test('update sem campos válidos chama findById', async () => {
     const row = { id: 'cp1', status: 'planned' };

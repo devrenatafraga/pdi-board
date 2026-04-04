@@ -75,6 +75,12 @@ beforeEach(() => {
     if (fields.token_position !== undefined) theme.token_position = fields.token_position;
     return Promise.resolve(theme);
   });
+  themeRepo.remove.mockImplementation(id => {
+    mockDb.themes = mockDb.themes.filter(t => t.id !== id);
+    // Simula ON DELETE CASCADE de checkpoints vinculados ao tema removido.
+    mockDb.checkpoints = mockDb.checkpoints.filter(c => c.theme_id !== id);
+    return Promise.resolve();
+  });
 
   // ── checkpointRepo ──
   checkpointRepo.findByTheme.mockImplementation(themeId =>
@@ -138,7 +144,7 @@ beforeEach(() => {
   const reportsRouter = require('../routes/reports');
   app = express();
   app.use(express.json());
-  app.use((req, _res, next) => { req.headers['x-dev-user-id'] = 'test-user'; next(); });
+  app.use((req, _res, next) => { req.auth = { userId: 'test-user' }; next(); });
   app.use('/api', apiRouter);
   app.use('/api/reports', reportsRouter);
 });
@@ -185,18 +191,15 @@ describe('getUserId — autenticação via req.auth.userId', () => {
     expect(pdiRepo.findByUser).toHaveBeenCalledWith('clerk-user-99');
   });
 
-  it('usa x-dev-user-id quando req.auth não está presente', async () => {
-    const pdiRepo = require('../db/repositories/pdiRepo');
-    pdiRepo.findByUser.mockResolvedValue([]);
-
+  it('returns 401 when req.auth.userId is missing', async () => {
     const apiRouter = require('../routes/api');
-    const devApp = express();
-    devApp.use(express.json());
-    devApp.use('/api', apiRouter);
+    const unauthApp = express();
+    unauthApp.use(express.json());
+    unauthApp.use('/api', apiRouter);
 
-    const res = await request(devApp).get('/api/data').set('x-dev-user-id', 'dev-user-header');
-    expect(res.status).toBe(200);
-    expect(pdiRepo.findByUser).toHaveBeenCalledWith('dev-user-header');
+    const res = await request(unauthApp).get('/api/data');
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'Unauthorized' });
   });
 });
 
@@ -232,6 +235,49 @@ describe('PUT /api/config', () => {
     expect(res.body.config.themes).toHaveLength(1);
     expect(res.body.config.themes[0].name).toBe('Hard Skills');
     expect(res.body.config.themes[0].checkpoints).toHaveLength(2);
+  });
+
+  it('substitui temas antigos ao salvar nova configuração (sem duplicar)', async () => {
+    await request(app).put('/api/config').send({
+      ...sampleConfig,
+      themes: [
+        ...sampleConfig.themes,
+        {
+          id: 'theme-1',
+          name: 'Soft Skills',
+          color: '#22C55E',
+          tokenPosition: 0,
+          checkpoints: [
+            { id: 'cp-1-1', title: 'CP A', month: 1, biweekly: 1, type: 'normal', status: 'planned', points: 0, notes: '' },
+            { id: 'cp-1-2', title: 'CP B', month: 1, biweekly: 2, type: 'bonus', status: 'planned', points: 0, notes: '' },
+          ],
+        },
+      ],
+    });
+
+    await request(app).put('/api/config').send({
+      ...sampleConfig,
+      themes: [
+        {
+          id: 'theme-0',
+          name: 'Novo Tema Unico',
+          color: '#A855F7',
+          tokenPosition: 0,
+          checkpoints: [
+            { id: 'cp-x-1', title: 'Novo CP1', month: 1, biweekly: 1, type: 'normal', status: 'planned', points: 0, notes: '' },
+            { id: 'cp-x-2', title: 'Novo CP2', month: 1, biweekly: 2, type: 'milestone', status: 'planned', points: 0, notes: '' },
+          ],
+        },
+      ],
+    });
+
+    const res = await request(app).get('/api/data');
+    expect(res.status).toBe(200);
+    expect(res.body.config.themes).toHaveLength(1);
+    expect(res.body.config.themes[0].name).toBe('Novo Tema Unico');
+    expect(res.body.config.themes[0].checkpoints).toHaveLength(2);
+    expect(mockDb.themes).toHaveLength(1);
+    expect(mockDb.checkpoints).toHaveLength(2);
   });
 });
 

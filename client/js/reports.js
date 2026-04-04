@@ -1,4 +1,4 @@
-/* reports.js — geração e download de relatórios */
+/* reports.js - report generation and download */
 
 const Reports = (() => {
   function render(config) {
@@ -70,7 +70,7 @@ const Reports = (() => {
 
     try {
       const response = await fetch(`/api/reports/${format}`);
-      if (!response.ok) throw new Error('Falha ao gerar relatório');
+      if (!response.ok) throw new Error('Failed to generate report');
       const blob = await response.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
@@ -81,7 +81,8 @@ const Reports = (() => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e) {
-      alert('Erro ao gerar relatório. Tente novamente.');
+      Logger.error('[Reports] Report generation failed', { message: e && e.message, format });
+      alert('Failed to generate report. Please try again.');
     } finally {
       if (btn) btn.innerHTML = originalHtml;
     }

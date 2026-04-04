@@ -1,4 +1,4 @@
-/* setup.js — wizard de configuração inicial (temas dinâmicos 1-6) */
+ /* setup.js - initial setup wizard (1-6 dynamic themes) */
 
 const THEME_COLORS = ['#3B82F6', '#22C55E', '#F97316', '#A855F7', '#EF4444', '#14B8A6'];
 const MAX_THEMES = 6;
@@ -44,7 +44,7 @@ const Setup = (() => {
   }
 
   function renderProgress() {
-    const totalSteps = 2 + draft.themes.length; // pdi-info + themes-name + N checkpoints steps
+    const totalSteps = 2 + draft.themes.length; // PDI info + theme names + one checkpoint step per theme
     const currentIdx = step === 0 ? 0 : step === 1 ? 1 : 2 + draft._cpThemeIdx;
     return `<div class="setup-progress">
       ${Array.from({ length: totalSteps }, (_, i) =>
@@ -201,7 +201,7 @@ const Setup = (() => {
         saveThemeNamesAndColors();
         const idx = +btn.dataset.idx;
         draft.themes.splice(idx, 1);
-        // Re-assign IDs
+        // Re-assign stable theme IDs after removal.
         draft.themes.forEach((t, i) => { t.id = `theme-${i}`; });
         render();
       };

@@ -1,4 +1,4 @@
-/* board.js — renderização das trilhas (dinâmico, N temas) */
+/* board.js - renders dynamic board tracks */
 
 const Board = (() => {
   const SQUARE_ICONS = {
@@ -69,7 +69,9 @@ const Board = (() => {
         ${renderTrack(theme, themeIndex)}
       </div>`;
 
-    // bind clicks
+    // Draw after layout so geometry is available when frame becomes visible.
+    requestAnimationFrame(() => drawTrackPath(themeIndex));
+
     container.querySelectorAll('.square[data-cp-id]').forEach(el => {
       el.addEventListener('click', () => {
         const cp = theme.checkpoints.find(c => c.id === el.dataset.cpId);
@@ -78,10 +80,100 @@ const Board = (() => {
     });
   }
 
+  function drawTrackPath(themeIndex) {
+    const track = document.getElementById(`track-${themeIndex}`);
+    if (!track) return;
+
+    track.querySelector('.board-path-svg')?.remove();
+    track.classList.remove('has-svg-path');
+
+    const trackRect = track.getBoundingClientRect();
+    // Hidden frames have zero geometry; redraw on navigation/resize.
+    if (!trackRect.width || !trackRect.height) return;
+
+    const rows = [...track.querySelectorAll('.month-row')];
+    const rowsPoints = rows.map((row) => {
+      const monthSquares = row.querySelector('.month-squares');
+      if (!monthSquares) return [];
+
+      const reversed = monthSquares.classList.contains('month-squares-reversed');
+      const points = [...monthSquares.querySelectorAll('.square')].map((sq) => {
+        const icon = sq.querySelector('.square-icon');
+        const rect = (icon || sq).getBoundingClientRect();
+        return {
+          x: rect.left + rect.width / 2 - trackRect.left,
+          y: rect.top + rect.height / 2 - trackRect.top,
+        };
+      });
+
+      points.sort((a, b) => reversed ? b.x - a.x : a.x - b.x);
+      return points;
+    }).filter((p) => p.length);
+
+    if (!rowsPoints.length) return;
+
+    let d = '';
+    const first = rowsPoints[0][0];
+    d += `M ${first.x} ${first.y}`;
+
+    for (let r = 0; r < rowsPoints.length; r++) {
+      const row = rowsPoints[r];
+
+      for (let i = 1; i < row.length; i++) {
+        d += ` L ${row[i].x} ${row[i].y}`;
+      }
+
+      const nextRow = rowsPoints[r + 1];
+      if (!nextRow) continue;
+
+      const from = row[row.length - 1];
+      const to = nextRow[0];
+      const cp1x = from.x + (to.x - from.x) * 0.25;
+      const cp2x = from.x + (to.x - from.x) * 0.75;
+      d += ` C ${cp1x} ${from.y}, ${cp2x} ${to.y}, ${to.x} ${to.y}`;
+    }
+
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('class', 'board-path-svg');
+    svg.setAttribute('viewBox', `0 0 ${Math.max(track.clientWidth, 1)} ${Math.max(track.clientHeight, 1)}`);
+    svg.setAttribute('preserveAspectRatio', 'none');
+
+    const path = document.createElementNS(svgNS, 'path');
+    path.setAttribute('class', 'board-path-line');
+    path.setAttribute('d', d);
+
+    svg.appendChild(path);
+    track.prepend(svg);
+    track.classList.add('has-svg-path');
+  }
+
+  function redrawVisiblePath(frameId) {
+    if (typeof frameId === 'string' && frameId.startsWith('board-')) {
+      const idx = parseInt(frameId.replace('board-', ''), 10);
+      if (!Number.isNaN(idx)) drawTrackPath(idx);
+      return;
+    }
+
+    document.querySelectorAll('.frame[id^="frame-board-"]:not(.hidden)').forEach((frame) => {
+      if (!frame.classList.contains('active')) return;
+      const idx = parseInt(frame.id.replace('frame-board-', ''), 10);
+      if (!Number.isNaN(idx)) drawTrackPath(idx);
+    });
+  }
+
+  let _resizeBound = false;
+  function bindPathResizeListener() {
+    if (_resizeBound) return;
+    _resizeBound = true;
+    window.addEventListener('resize', () => {
+      requestAnimationFrame(() => redrawVisiblePath());
+    });
+  }
+
   function renderTrack(theme, themeIndex) {
     const startSquare = { id: `start-${themeIndex}`, type: 'start', title: 'Start', status: 'done', points: 0 };
 
-    // Group by month (supports variable checkpoint counts)
     const totalCps = theme.checkpoints.length;
     const months = [{ label: '🚀 Início', squares: [startSquare] }];
     const monthSet = [...new Set(theme.checkpoints.map(c => c.month))].sort((a, b) => a - b);
@@ -95,7 +187,8 @@ const Board = (() => {
     let posCounter = 0;
 
     return months.map((m, mi) => {
-      const isReversed = mi % 2 === 1;
+      const isStartRow = mi === 0;
+      const isReversed = !isStartRow && ((mi - 1) % 2 === 1);
       const connector = mi < months.length - 1;
       const connectorOnRight = !isReversed;
 
@@ -124,12 +217,16 @@ const Board = (() => {
 
     const attrs = sq.type !== 'start' ? `data-cp-id="${sq.id}"` : '';
     const cursorStyle = sq.type === 'start' ? 'style="cursor:default"' : '';
+    const doneMarker = !isStart && sq.status === 'done'
+      ? `<div class="square-status-mark${sq.type === 'setback' ? ' is-negative' : ''}" aria-label="Concluído">${sq.type === 'setback' ? '✕' : '✓'}</div>`
+      : '';
 
     return `
       <div class="square type-${sq.type} ${statusClass}" ${attrs} ${cursorStyle} title="${sq.title}" style="--sq-color:${theme.color}">
         <div class="square-pos">${pos === 0 ? '🏁' : pos}</div>
         <div class="square-icon">
           <span class="square-icon-inner">${SQUARE_ICONS[sq.type] || '⬜'}</span>
+          ${doneMarker}
         </div>
         <div class="square-label">${sq.title}</div>
         ${sq.type !== 'start' ? `<div class="square-points${sq.points > 0 ? ' has-points' : sq.points < 0 ? ' neg-points' : ''}">${sq.points !== 0 ? `${sq.points > 0 ? '+' : ''}${sq.points}pts` : ''}</div>` : ''}
@@ -338,12 +435,9 @@ const Board = (() => {
     return `${d}/${m}/${y}`;
   }
 
-  // Creates/updates board frame elements in DOM dynamically
   function ensureBoardFrames(config) {
     const main = document.getElementById('main-frames');
-    // remove old board frames
     main.querySelectorAll('.frame[id^="frame-board-"]').forEach(el => el.remove());
-    // find insertion point (after frame-instructions)
     const instructionsFrame = document.getElementById('frame-instructions');
     config.themes.forEach((_, i) => {
       const section = document.createElement('section');
@@ -354,14 +448,12 @@ const Board = (() => {
     });
   }
 
-  // Injects dynamic theme nav tabs
   function updateNavTabs(config) {
     const navTabs = document.getElementById('nav-tabs');
-    // remove old board nav items
     navTabs.querySelectorAll('li[data-board-tab]').forEach(el => el.remove());
-    // insert after "Regras" item
-    const instructionsLi = navTabs.querySelector('li:has([data-frame="instructions"])');
-    const themeEmojis = ['🟦', '🟩', '🟧', '🟪', '🟥', '🟫'];
+    const instructionsBtn = navTabs.querySelector('[data-frame="instructions"]');
+    const instructionsLi = instructionsBtn ? instructionsBtn.closest('li') : null;
+    let insertAfter = instructionsLi;
     config.themes.forEach((t, i) => {
       const li = document.createElement('li');
       li.setAttribute('data-board-tab', i);
@@ -370,9 +462,13 @@ const Board = (() => {
       btn.dataset.frame = `board-${i}`;
       btn.innerHTML = `<span class="nav-dot" style="background:${t.color}"></span>${t.name || `Tema ${i+1}`}`;
       li.appendChild(btn);
-      instructionsLi.insertAdjacentElement('afterend', li);
+      if (insertAfter) {
+        insertAfter.insertAdjacentElement('afterend', li);
+        insertAfter = li;
+      } else {
+        navTabs.appendChild(li);
+      }
     });
-    // re-bind navigation for all nav buttons
     navTabs.querySelectorAll('.nav-btn').forEach(btn => {
       btn.onclick = () => App.navigate(btn.dataset.frame);
     });
@@ -380,10 +476,12 @@ const Board = (() => {
 
   return {
     renderAll(config) {
+      bindPathResizeListener();
       ensureBoardFrames(config);
       updateNavTabs(config);
       config.themes.forEach((_, i) => renderBoard(i, config));
     },
+    redrawVisiblePath,
     renderBoard,
     calcPoints,
   };
