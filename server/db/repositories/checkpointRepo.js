@@ -1,4 +1,5 @@
 const pool = require('../pool');
+const { buildUpdateQuery } = require('../../lib/queryBuilder');
 
 async function findByTheme(themeId) {
   const { rows } = await pool.query(
@@ -29,19 +30,19 @@ async function bulkCreate(themeId, checkpoints) {
 
 async function update(id, fields) {
   const allowed = ['title', 'status', 'points', 'notes', 'links'];
-  const sets = [];
-  const values = [];
-  allowed.forEach(key => {
-    if (fields[key] !== undefined) {
-      sets.push(`${key} = $${values.length + 1}`);
-      values.push(key === 'links' ? JSON.stringify(fields[key]) : fields[key]);
-    }
+  const { sets, values } = buildUpdateQuery(fields, allowed);
+
+  // Handle JSON serialization for links field
+  const finalValues = values.map((v, i) => {
+    const fieldName = allowed[i];
+    return fieldName === 'links' ? JSON.stringify(v) : v;
   });
+
   if (!sets.length) return findById(id);
-  values.push(id);
+  finalValues.push(id);
   const { rows } = await pool.query(
-    `UPDATE checkpoints SET ${sets.join(', ')} WHERE id = $${values.length} RETURNING *`,
-    values
+    `UPDATE checkpoints SET ${sets.join(', ')} WHERE id = $${finalValues.length} RETURNING *`,
+    finalValues
   );
   return rows[0] || null;
 }

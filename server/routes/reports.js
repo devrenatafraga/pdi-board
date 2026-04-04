@@ -5,15 +5,16 @@ const ExcelJS = require('exceljs');
 const pdiRepo        = require('../db/repositories/pdiRepo');
 const themeRepo      = require('../db/repositories/themeRepo');
 const checkpointRepo = require('../db/repositories/checkpointRepo');
+const { getUserId } = require('../lib/authHelper');
+const {
+  STATUS_LABELS,
+  TYPE_LABELS,
+  calculateThemeStats,
+  calculateTotalStats
+} = require('../lib/reportStats');
 
 const router = express.Router();
 
-const STATUS_LABELS = { planned: 'Planejado', 'in-progress': 'Em Progresso', done: 'Concluído' };
-const TYPE_LABELS   = { normal: 'Checkpoint', bonus: 'Bônus', setback: 'Retrocesso', milestone: 'Milestone', start: 'Início' };
-
-function getUserId(req) {
-  return req.auth?.userId || null;
-}
 
 async function loadReportData(req) {
   const userId = getUserId(req);
@@ -50,14 +51,13 @@ router.get('/pdf', async (req, res) => {
   doc.fontSize(10).text(`Início: ${pdi.start_date}  |  Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, { align: 'center' });
   doc.moveDown(1);
 
-  const totalCheckpoints = themes.reduce((s, t) => s + t.checkpoints.length, 0);
+  const { totalCheckpoints } = calculateTotalStats(themes);
 
   themes.forEach((theme, ti) => {
-    const done = theme.checkpoints.filter(c => c.status === 'done').length;
-    const pts  = theme.checkpoints.reduce((s, c) => s + (c.points || 0), 0);
+    const { done, points } = calculateThemeStats(theme.checkpoints);
 
     doc.fontSize(15).font('Helvetica-Bold').fillColor('#000').text(`Tema ${ti + 1}: ${theme.name}`);
-    doc.fontSize(10).font('Helvetica').fillColor('#444').text(`${done}/${theme.checkpoints.length} concluídos · ${pts} pontos`);
+    doc.fontSize(10).font('Helvetica').fillColor('#444').text(`${done}/${theme.checkpoints.length} concluídos · ${points} pontos`);
     doc.moveDown(0.5);
 
     const cols = { pos: 40, title: 180, type: 70, status: 80, pts: 45, notes: 130 };
@@ -94,12 +94,11 @@ router.get('/pdf', async (req, res) => {
     y = doc.y;
   });
 
-  const totalPts  = themes.reduce((s, t) => s + t.checkpoints.reduce((a, c) => a + (c.points || 0), 0), 0);
-  const totalDone = themes.reduce((s, t) => s + t.checkpoints.filter(c => c.status === 'done').length, 0);
+  const { totalPoints, totalDone } = calculateTotalStats(themes);
   doc.fontSize(13).font('Helvetica-Bold').fillColor('#000').text('Resumo Geral');
   doc.fontSize(11).font('Helvetica').fillColor('#333');
   doc.text(`Total de checkpoints concluídos: ${totalDone}/${totalCheckpoints}`);
-  doc.text(`Total de pontos acumulados: ${totalPts}`);
+  doc.text(`Total de pontos acumulados: ${totalPoints}`);
 
   doc.end();
 });
@@ -117,14 +116,13 @@ router.get('/docx', async (req, res) => {
   children.push(new Paragraph({ text: `Início: ${pdi.start_date} | Gerado: ${new Date().toLocaleDateString('pt-BR')}` }));
   children.push(new Paragraph({ text: '' }));
 
-  const totalCheckpoints = themes.reduce((s, t) => s + t.checkpoints.length, 0);
+  const { totalCheckpoints } = calculateTotalStats(themes);
 
   themes.forEach((theme, ti) => {
-    const done = theme.checkpoints.filter(c => c.status === 'done').length;
-    const pts  = theme.checkpoints.reduce((s, c) => s + (c.points || 0), 0);
+    const { done, points } = calculateThemeStats(theme.checkpoints);
 
     children.push(new Paragraph({ text: `Tema ${ti + 1}: ${theme.name}`, heading: HeadingLevel.HEADING_1 }));
-    children.push(new Paragraph({ text: `${done}/${theme.checkpoints.length} concluídos · ${pts} pontos` }));
+    children.push(new Paragraph({ text: `${done}/${theme.checkpoints.length} concluídos · ${points} pontos` }));
     children.push(new Paragraph({ text: '' }));
 
     const headerRow = new TableRow({
@@ -146,11 +144,10 @@ router.get('/docx', async (req, res) => {
     children.push(new Paragraph({ text: '' }));
   });
 
-  const totalPts  = themes.reduce((s, t) => s + t.checkpoints.reduce((a, c) => a + (c.points || 0), 0), 0);
-  const totalDone = themes.reduce((s, t) => s + t.checkpoints.filter(c => c.status === 'done').length, 0);
+  const { totalPoints, totalDone } = calculateTotalStats(themes);
   children.push(new Paragraph({ text: 'Resumo Geral', heading: HeadingLevel.HEADING_1 }));
   children.push(new Paragraph({ text: `Total checkpoints concluídos: ${totalDone}/${totalCheckpoints}` }));
-  children.push(new Paragraph({ text: `Total de pontos: ${totalPts}` }));
+  children.push(new Paragraph({ text: `Total de pontos: ${totalPoints}` }));
 
   const doc = new Document({ sections: [{ children }] });
   const buffer = await Packer.toBuffer(doc);
@@ -165,7 +162,7 @@ router.get('/xlsx', async (req, res) => {
   const data = await loadReportData(req);
   if (!data) return res.status(400).json({ error: 'No configuration found' });
 
-  const { pdi, themes } = data;
+  const { themes } = data;
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'PDI Board';
   workbook.created = new Date();
@@ -181,10 +178,8 @@ router.get('/xlsx', async (req, res) => {
   summary.getRow(1).font = { bold: true };
 
   themes.forEach(theme => {
-    const done = theme.checkpoints.filter(c => c.status === 'done').length;
-    const pts  = theme.checkpoints.reduce((s, c) => s + (c.points || 0), 0);
-    const total = theme.checkpoints.length;
-    summary.addRow({ theme: theme.name, done, total, points: pts, pct: `${Math.round(done / total * 100)}%` });
+    const { done, points, total } = calculateThemeStats(theme.checkpoints);
+    summary.addRow({ theme: theme.name, done, total, points, pct: `${Math.round(done / total * 100)}%` });
   });
 
   themes.forEach((theme, ti) => {

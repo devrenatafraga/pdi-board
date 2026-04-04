@@ -10,12 +10,30 @@
     "test:coverage": "jest --coverage"
   },
   "jest": {
-    "testEnvironment": "node",
-    "testMatch": [
-      "**/__tests__/**/*.test.js"
-    ],
-    "collectCoverageFrom": [
-      "server/**/*.js"
+    "projects": [
+      {
+        "displayName": "server",
+        "testEnvironment": "node",
+        "rootDir": ".",
+        "testMatch": [
+          "<rootDir>/server/__tests__/**/*.test.js"
+        ],
+        "collectCoverageFrom": [
+          "server/**/*.js",
+          "!server/__tests__/**"
+        ]
+      },
+      {
+        "displayName": "client",
+        "testEnvironment": "jsdom",
+        "rootDir": ".",
+        "testMatch": [
+          "<rootDir>/client/__tests__/**/*.test.js"
+        ],
+        "collectCoverageFrom": [
+          "client/js/**/*.js"
+        ]
+      }
     ],
     "coverageReporters": [
       "lcov",
@@ -25,18 +43,20 @@
     "coverageDirectory": "coverage"
   },
   "dependencies": {
-    "@clerk/clerk-sdk-node": "^4.13.23",
-    "cors": "^2.8.5",
-    "docx": "^9.6.0",
-    "dotenv": "^17.3.1",
-    "exceljs": "^4.4.0",
-    "express": "^4.18.2",
-    "pdfkit": "^0.17.2",
-    "pg": "^8.20.0"
+    "@clerk/clerk-sdk-node": "5.1.6",
+    "cors": "2.8.5",
+    "docx": "9.6.0",
+    "dotenv": "17.3.1",
+    "exceljs": "4.4.0",
+    "express": "4.22.1",
+    "pdfkit": "0.17.2",
+    "pg": "8.20.0"
   },
   "devDependencies": {
-    "jest": "^30.2.0",
-    "nodemon": "^3.0.2",
-    "supertest": "^7.2.2"
+    "jest": "30.2.0",
+    "jest-environment-jsdom": "30.3.0",
+    "jsdom": "23.2.0",
+    "nodemon": "3.0.2",
+    "supertest": "7.2.2"
   }
 }

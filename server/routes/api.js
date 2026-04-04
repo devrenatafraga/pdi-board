@@ -5,6 +5,7 @@ const checkpointRepo = require('../db/repositories/checkpointRepo');
 const oneOnOneRepo   = require('../db/repositories/oneOnOneRepo');
 const evidenceRepo   = require('../db/repositories/evidenceRepo');
 const logger = require('../lib/logger');
+const { getUserId } = require('../lib/authHelper');
 
 const router = express.Router();
 
@@ -23,10 +24,6 @@ function normalizeCheckpoint(cp) {
   };
 }
 
-// Use authenticated Clerk user id only.
-function getUserId(req) {
-  return req.auth?.userId || null;
-}
 
 async function getActivePdi(userId) {
   const pdis = await pdiRepo.findByUser(userId);
