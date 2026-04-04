@@ -6,6 +6,7 @@ const { ClerkExpressWithAuth } = require('@clerk/clerk-sdk-node');
 const requireAuth = require('./middleware/requireAuth');
 const apiRouter = require('./routes/api');
 const reportsRouter = require('./routes/reports');
+const logger = require('./lib/logger');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,6 +49,6 @@ module.exports = app;
 
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`PDI Board rodando em http://localhost:${PORT}`);
+    logger.info(`PDI Board running at http://localhost:${PORT}`);
   });
 }

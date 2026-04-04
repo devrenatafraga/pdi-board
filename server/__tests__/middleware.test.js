@@ -11,6 +11,7 @@ describe('requireAuth middleware', () => {
   beforeEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
+    mockMiddleware.mockReset();
 
     jest.mock('@clerk/clerk-sdk-node', () => ({
       ClerkExpressRequireAuth: jest.fn(() => mockMiddleware),
@@ -24,11 +25,18 @@ describe('requireAuth middleware', () => {
     expect(ClerkExpressRequireAuth).toHaveBeenCalledTimes(1);
   });
 
-  it('exports the result of ClerkExpressRequireAuth()', () => {
-    expect(requireAuth).toBe(mockMiddleware);
-  });
-
   it('exported value is a function', () => {
     expect(typeof requireAuth).toBe('function');
+  });
+
+  it('delegates directly to Clerk middleware', () => {
+    const req = { headers: {} };
+    const res = {};
+    const next = jest.fn();
+
+    requireAuth(req, res, next);
+
+    expect(mockMiddleware).toHaveBeenCalledTimes(1);
+    expect(mockMiddleware).toHaveBeenCalledWith(req, res, next);
   });
 });

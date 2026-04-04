@@ -12,11 +12,12 @@ const STATUS_LABELS = { planned: 'Planejado', 'in-progress': 'Em Progresso', don
 const TYPE_LABELS   = { normal: 'Checkpoint', bonus: 'Bônus', setback: 'Retrocesso', milestone: 'Milestone', start: 'Início' };
 
 function getUserId(req) {
-  return req.auth?.userId || req.headers['x-dev-user-id'] || 'dev-user';
+  return req.auth?.userId || null;
 }
 
 async function loadReportData(req) {
   const userId = getUserId(req);
+  if (!userId) return null;
   const pdis = await pdiRepo.findByUser(userId);
   const pdi = pdis[0];
   if (!pdi) return null;
@@ -32,10 +33,10 @@ async function loadReportData(req) {
   return { pdi, themes: themesWithCheckpoints };
 }
 
-// ─── PDF ──────────────────────────────────────────────────────────────────────
+// PDF
 router.get('/pdf', async (req, res) => {
   const data = await loadReportData(req);
-  if (!data) return res.status(400).json({ error: 'Sem configuração' });
+  if (!data) return res.status(400).json({ error: 'No configuration found' });
 
   const { pdi, themes } = data;
   const doc = new PDFDocument({ margin: 50, size: 'A4' });
@@ -103,10 +104,10 @@ router.get('/pdf', async (req, res) => {
   doc.end();
 });
 
-// ─── DOCX ─────────────────────────────────────────────────────────────────────
+// DOCX
 router.get('/docx', async (req, res) => {
   const data = await loadReportData(req);
-  if (!data) return res.status(400).json({ error: 'Sem configuração' });
+  if (!data) return res.status(400).json({ error: 'No configuration found' });
 
   const { pdi, themes } = data;
   const children = [];
@@ -159,10 +160,10 @@ router.get('/docx', async (req, res) => {
   res.send(buffer);
 });
 
-// ─── XLSX ─────────────────────────────────────────────────────────────────────
+// XLSX
 router.get('/xlsx', async (req, res) => {
   const data = await loadReportData(req);
-  if (!data) return res.status(400).json({ error: 'Sem configuração' });
+  if (!data) return res.status(400).json({ error: 'No configuration found' });
 
   const { pdi, themes } = data;
   const workbook = new ExcelJS.Workbook();

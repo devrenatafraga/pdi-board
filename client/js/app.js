@@ -1,27 +1,54 @@
-/* app.js — inicialização, navegação e dark/light mode */
+/* app.js - app bootstrap, navigation, and theme mode */
 
 const App = (() => {
   let _data = null;
 
+  function _diag(method, message, details) {
+    const mappedMethod = method === 'log' ? 'info' : method;
+    if (typeof Logger !== 'undefined' && typeof Logger[mappedMethod] === 'function') {
+      Logger[mappedMethod](message, details);
+    }
+  }
+
   function setData(data) { _data = data; }
 
   async function init() {
-    const data = await API.get('/data');
-    _data = data;
+    _diag('log', 'app.init:start');
+    try {
+      const data = await API.get('/data');
+      _diag('log', 'app.init:data-loaded', { hasConfig: Boolean(data && data.config) });
+      _data = data;
 
-    if (!data.config) {
-      Setup.show();
-      return;
+      if (!data.config) {
+        _diag('warn', 'app.init:no-config');
+        Setup.show();
+        return;
+      }
+
+      showApp(data);
+    } catch (err) {
+      Logger.error('[App] Failed to load data', { message: err && err.message });
+      _diag('error', 'app.init:failed', { message: err && err.message });
+      const loginScreen = document.getElementById('login-screen');
+      if (loginScreen) {
+        loginScreen.classList.remove('hidden');
+        loginScreen.innerHTML = `
+          <div class="login-card">
+            <div class="login-logo">⚠️</div>
+            <h1 class="login-title">Authentication Error</h1>
+            <p class="login-subtitle">${err.message}</p>
+            <button class="btn-google-signin" onclick="location.reload()">Try Again</button>
+            <p class="login-hint">If the issue persists, sign out and sign in again.</p>
+          </div>`;
+      }
     }
-
-    showApp(data);
   }
 
   function showApp(data) {
+    _diag('log', 'app.showApp:start', { themeCount: data.config.themes.length });
     document.getElementById('setup-overlay').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
 
-    // Render all sections (board.js creates frames + nav tabs dynamically)
     Board.renderAll(data.config);
     Token.init(data.config);
     Dashboard.render(data);
@@ -30,12 +57,10 @@ const App = (() => {
     Reports.render(data.config);
     renderInstructions(data.config);
 
-    // Re-bind static nav buttons (dynamic theme tabs bound inside board.js)
-    document.querySelectorAll('.nav-btn:not([data-board-tab] .nav-btn)').forEach(btn => {
-      if (btn.dataset.frame) btn.onclick = () => navigate(btn.dataset.frame);
+    document.querySelectorAll('.nav-btn[data-frame]:not([data-frame^="board-"])').forEach(btn => {
+      btn.onclick = () => navigate(btn.dataset.frame);
     });
 
-    // Reset config
     document.getElementById('btn-reset-config').onclick = () => {
       if (confirm('⚠️ Isso vai iniciar o setup novamente. Os dados do board serão mantidos, mas a configuração será sobrescrita. Continuar?')) {
         document.getElementById('app').classList.add('hidden');
@@ -43,11 +68,10 @@ const App = (() => {
       }
     };
 
-    // Dark / Light mode toggle
     initThemeToggle();
 
-    // Navigate to dashboard by default
     navigate('dashboard');
+    _diag('log', 'app.showApp:done');
   }
 
   function navigate(frameId) {
@@ -57,6 +81,11 @@ const App = (() => {
     if (frame) frame.classList.add('active');
     const btn = document.querySelector(`.nav-btn[data-frame="${frameId}"]`);
     if (btn) btn.classList.add('active');
+
+    if (frameId && frameId.startsWith('board-') && typeof Board !== 'undefined' && typeof Board.redrawVisiblePath === 'function') {
+      // Draw after frame becomes visible to avoid collapsed geometry.
+      requestAnimationFrame(() => Board.redrawVisiblePath(frameId));
+    }
   }
 
   function initThemeToggle() {
@@ -151,4 +180,4 @@ const App = (() => {
   return { init, setData, navigate };
 })();
 
-// App is initialized by auth.js after authentication is confirmed
+// Initialized by auth.js once authentication is resolved.
