@@ -26,11 +26,16 @@ pool.on('error', (err) => {
   logger.error('Unexpected database pool error', {
     message: err && err.message,
     code: err && err.code,
+    errno: err && err.errno,
+    host: err && err.host,
+    port: err && err.port,
   });
 });
 
 pool.on('connect', () => {
-  logger.info('✓ Database connection established');
+  logger.info('✓ Database connection established', {
+    host: process.env.DATABASE_URL?.split('@')[1]?.split(':')[0] || 'unknown',
+  });
 });
 
 module.exports = pool;
