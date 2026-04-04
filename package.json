@@ -6,8 +6,8 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "npx nodemon server/index.js",
-    "test": "jest --config .jestrc.json",
-    "test:coverage": "jest --config .jestrc.json --coverage"
+    "test": "jest --config .jestrc.json --forceExit --detectOpenHandles",
+    "test:coverage": "jest --config .jestrc.json --coverage --forceExit --detectOpenHandles"
   },
   "dependencies": {
     "@clerk/clerk-sdk-node": "5.1.6",

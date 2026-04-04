@@ -13,7 +13,6 @@
       ],
       "setupFilesAfterEnv": ["<rootDir>/server/__tests__/setup.js"],
       "testTimeout": 10000,
-      "forceExit": true,
       "detectOpenHandles": true,
       "maxWorkers": "50%"
     },
