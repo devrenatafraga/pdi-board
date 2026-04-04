@@ -10,20 +10,30 @@ const logger = require('./lib/logger');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const requestLogger = require('./middleware/requestLogger');
 
 // ── Validate Clerk keys ────────────────────────────────────────────────────────
 const isProduction = process.env.NODE_ENV === 'production';
 const publishableKey = process.env.CLERK_PUBLISHABLE_KEY || '';
 const secretKey = process.env.CLERK_SECRET_KEY || '';
 
+// Validation: in production, keys must be production keys
 if (isProduction && (publishableKey.startsWith('pk_test_') || secretKey.startsWith('sk_test_'))) {
   logger.warn('⚠️  WARNING: Development Clerk keys detected in production!');
   logger.warn('Please use production keys: CLERK_PUBLISHABLE_KEY should start with pk_live_ and CLERK_SECRET_KEY should start with sk_live_');
   logger.warn('See: https://clerk.com/docs/deployments/overview');
 }
 
+// Validation: in development, keys should ideally be test keys
+if (!isProduction && (!publishableKey.startsWith('pk_test_') || !secretKey.startsWith('sk_test_'))) {
+  logger.warn('ℹ️  INFO: Using non-test Clerk keys in development environment');
+}
+
 app.use(cors());
 app.use(express.json());
+
+// Request logging for debugging (development only)
+app.use(requestLogger);
 
 // Attach Clerk auth context to every request (does not block unauthenticated requests)
 app.use(ClerkExpressWithAuth());
