@@ -10,8 +10,8 @@ const Setup = (() => {
     title: 'Meu PDI',
     startDate: '',
     themes: [
-      { id: 'theme-0', name: '', color: THEME_COLORS[0], checkpoints: [] },
-      { id: 'theme-1', name: '', color: THEME_COLORS[1], checkpoints: [] },
+      { id: 'theme-0', name: '', color: THEME_COLORS[0], endDate: '', checkpoints: [] },
+      { id: 'theme-1', name: '', color: THEME_COLORS[1], endDate: '', checkpoints: [] },
     ],
     _cpThemeIdx: 0,
   };
@@ -83,7 +83,7 @@ const Setup = (() => {
         ${renderProgress()}
         <div>
           <h2>🎨 Defina os Temas</h2>
-          <p class="text-muted mt-2">Cada tema terá 4 meses e 8 checkpoints. Você pode ter de ${MIN_THEMES} a ${MAX_THEMES} temas.</p>
+          <p class="text-muted mt-2">Defina o nome, cor e data final de cada tema. Você pode ter de ${MIN_THEMES} a ${MAX_THEMES} temas.</p>
         </div>
         <div id="themes-list">
           ${draft.themes.map((t, i) => renderThemeRow(t, i)).join('')}
@@ -106,6 +106,10 @@ const Setup = (() => {
             <label>Nome do Tema ${i + 1}</label>
             <input type="text" class="theme-name-input" data-idx="${i}"
               value="${t.name}" placeholder="Ex: Hard Skills, Liderança, Arquitetura..." />
+          </div>
+          <div class="form-group" style="width:80px">
+            <label>Data Final</label>
+            <input type="date" class="theme-end-date-input" data-idx="${i}" value="${t.endDate || ''}" />
           </div>
           <div class="form-group" style="width:50px">
             <label>Cor</label>
@@ -176,6 +180,9 @@ const Setup = (() => {
       document.querySelectorAll('.theme-color-input').forEach(el => {
         draft.themes[+el.dataset.idx].color = el.value;
       });
+      document.querySelectorAll('.theme-end-date-input').forEach(el => {
+        draft.themes[+el.dataset.idx].endDate = el.value;
+      });
       draft._cpThemeIdx = 0;
       step = 2;
       render();
@@ -190,6 +197,7 @@ const Setup = (() => {
           id: `theme-${idx}`,
           name: '',
           color: THEME_COLORS[idx % THEME_COLORS.length],
+          endDate: '',
           checkpoints: [],
         });
         render();
@@ -217,6 +225,11 @@ const Setup = (() => {
     document.querySelectorAll('.theme-color-input').forEach(el => {
       if (draft.themes[+el.dataset.idx]) {
         draft.themes[+el.dataset.idx].color = el.value;
+      }
+    });
+    document.querySelectorAll('.theme-end-date-input').forEach(el => {
+      if (draft.themes[+el.dataset.idx]) {
+        draft.themes[+el.dataset.idx].endDate = el.value;
       }
     });
   }
@@ -258,6 +271,7 @@ const Setup = (() => {
         id: t.id,
         name: t.name,
         color: t.color,
+        endDate: t.endDate,
         tokenPosition: 0,
         checkpoints: t.checkpoints,
       })),
@@ -274,8 +288,8 @@ const Setup = (() => {
         title: 'Meu PDI',
         startDate: '',
         themes: [
-          { id: 'theme-0', name: '', color: THEME_COLORS[0], checkpoints: [] },
-          { id: 'theme-1', name: '', color: THEME_COLORS[1], checkpoints: [] },
+          { id: 'theme-0', name: '', color: THEME_COLORS[0], endDate: '', checkpoints: [] },
+          { id: 'theme-1', name: '', color: THEME_COLORS[1], endDate: '', checkpoints: [] },
         ],
         _cpThemeIdx: 0,
       };

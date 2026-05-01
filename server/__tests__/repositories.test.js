@@ -92,11 +92,27 @@ describe('themeRepo', () => {
     expect(result).toEqual(row);
   });
 
+  test('create insere tema com end_date', async () => {
+    const row = { id: 't1', pdi_id: 'pdi-1', name: 'Tech', color: '#3B82F6', position: 0, end_date: '2025-06-01' };
+    pool.query.mockResolvedValueOnce({ rows: [row] });
+    const result = await themeRepo.create('pdi-1', { name: 'Tech', color: '#3B82F6', position: 0, endDate: '2025-06-01' });
+    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('INSERT'), expect.arrayContaining(['2025-06-01']));
+    expect(result).toEqual(row);
+  });
+
   test('update com campos válidos executa UPDATE', async () => {
     const row = { id: 't1', name: 'Updated', color: '#000' };
     pool.query.mockResolvedValueOnce({ rows: [row] });
     expect(await themeRepo.update('t1', { name: 'Updated', color: '#000' })).toEqual(row);
     expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE'), expect.any(Array));
+  });
+
+  test('update com end_date executa UPDATE', async () => {
+    const row = { id: 't1', name: 'Tech', color: '#3B82F6', end_date: '2025-06-01' };
+    pool.query.mockResolvedValueOnce({ rows: [row] });
+    const result = await themeRepo.update('t1', { end_date: '2025-06-01' });
+    expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('UPDATE'), expect.arrayContaining(['2025-06-01']));
+    expect(result).toEqual(row);
   });
 
   test('update retorna null quando não encontrado', async () => {

@@ -90,8 +90,8 @@ beforeEach(() => {
   themeRepo.findById.mockImplementation(id =>
     Promise.resolve(mockDb.themes.find(t => t.id === id) || null)
   );
-  themeRepo.create.mockImplementation((pdiId, { name, color, position }) => {
-    const theme = { id: genUuid(), pdi_id: pdiId, name, color, position: position ?? 0, token_position: 0 };
+  themeRepo.create.mockImplementation((pdiId, { name, color, position, endDate }) => {
+    const theme = { id: genUuid(), pdi_id: pdiId, name, color, position: position ?? 0, token_position: 0, end_date: endDate ?? null };
     mockDb.themes.push(theme);
     return Promise.resolve(theme);
   });
@@ -101,6 +101,7 @@ beforeEach(() => {
     if (fields.name !== undefined) theme.name = fields.name;
     if (fields.color !== undefined) theme.color = fields.color;
     if (fields.token_position !== undefined) theme.token_position = fields.token_position;
+    if (fields.end_date !== undefined) theme.end_date = fields.end_date;
     return Promise.resolve(theme);
   });
   themeRepo.remove.mockImplementation(id => {
@@ -187,6 +188,7 @@ const sampleConfig = {
       id: 'theme-0',
       name: 'Hard Skills',
       color: '#3B82F6',
+      endDate: '2025-06-01',
       tokenPosition: 0,
       checkpoints: [
         { id: 'cp-0-1', title: 'CP1', month: 1, biweekly: 1, type: 'normal', status: 'planned', points: 0, notes: '' },
@@ -265,6 +267,12 @@ describe('PUT /api/config', () => {
     expect(res.body.config.themes[0].checkpoints).toHaveLength(2);
   });
 
+  it('persiste end_date do tema e retorna em GET /api/data', async () => {
+    await seedConfig();
+    const res = await request(app).get('/api/data');
+    expect(res.body.config.themes[0].endDate).toBe('2025-06-01');
+  });
+
   it('substitui temas antigos ao salvar nova configuração (sem duplicar)', async () => {
     await request(app).put('/api/config').send({
       ...sampleConfig,
@@ -333,6 +341,12 @@ describe('PUT /api/themes/:id', () => {
     await request(app).put(`/api/themes/${themeId}`).send({ tokenPosition: 2 });
     const theme = mockDb.themes.find(t => t.id === themeId);
     expect(theme.token_position).toBe(2);
+  });
+
+  it('atualiza end_date do tema', async () => {
+    await request(app).put(`/api/themes/${themeId}`).send({ endDate: '2025-12-31' });
+    const theme = mockDb.themes.find(t => t.id === themeId);
+    expect(theme.end_date).toBe('2025-12-31');
   });
 
   it('retorna 404 para tema inexistente', async () => {

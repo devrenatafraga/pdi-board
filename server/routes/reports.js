@@ -57,9 +57,10 @@ router.get('/pdf', async (req, res) => {
 
      themes.forEach((theme, ti) => {
        const { done, points } = calculateThemeStats(theme.checkpoints);
+       const endDateStr = theme.end_date ? `  |  Fim: ${theme.end_date}` : '';
 
        doc.fontSize(15).font('Helvetica-Bold').fillColor('#000').text(`Tema ${ti + 1}: ${theme.name}`);
-       doc.fontSize(10).font('Helvetica').fillColor('#444').text(`${done}/${theme.checkpoints.length} concluídos · ${points} pontos`);
+       doc.fontSize(10).font('Helvetica').fillColor('#444').text(`${done}/${theme.checkpoints.length} concluídos · ${points} pontos${endDateStr}`);
        doc.moveDown(0.5);
 
        const cols = { pos: 40, title: 180, type: 70, status: 80, pts: 45, notes: 130 };
@@ -130,9 +131,10 @@ router.get('/docx', async (req, res) => {
 
      themes.forEach((theme, ti) => {
        const { done, points } = calculateThemeStats(theme.checkpoints);
+       const endDateStr = theme.end_date ? `  |  Fim: ${theme.end_date}` : '';
 
        children.push(new Paragraph({ text: `Tema ${ti + 1}: ${theme.name}`, heading: HeadingLevel.HEADING_1 }));
-       children.push(new Paragraph({ text: `${done}/${theme.checkpoints.length} concluídos · ${points} pontos` }));
+       children.push(new Paragraph({ text: `${done}/${theme.checkpoints.length} concluídos · ${points} pontos${endDateStr}` }));
        children.push(new Paragraph({ text: '' }));
 
        const headerRow = new TableRow({
@@ -188,6 +190,7 @@ router.get('/xlsx', async (req, res) => {
      const summary = workbook.addWorksheet('Resumo');
      summary.columns = [
        { header: 'Tema', key: 'theme', width: 30 },
+       { header: 'Data Final', key: 'endDate', width: 12 },
        { header: 'Concluídos', key: 'done', width: 12 },
        { header: 'Total', key: 'total', width: 8 },
        { header: 'Pontos', key: 'points', width: 10 },
@@ -197,11 +200,30 @@ router.get('/xlsx', async (req, res) => {
 
      themes.forEach(theme => {
        const { done, points, total } = calculateThemeStats(theme.checkpoints);
-       summary.addRow({ theme: theme.name, done, total, points, pct: `${Math.round(done / total * 100)}%` });
+       summary.addRow({ theme: theme.name, endDate: theme.end_date || '', done, total, points, pct: `${Math.round(done / total * 100)}%` });
      });
 
      themes.forEach((theme, ti) => {
        const ws = workbook.addWorksheet(`Tema ${ti + 1}`);
+       const { done, points, total } = calculateThemeStats(theme.checkpoints);
+       const endDateStr = theme.end_date ? `  ·  Data Final: ${theme.end_date}` : '';
+       ws.pageSetup = { orientation: 'portrait', paperSize: 'letter' };
+       
+       // Add header with theme name and stats
+       ws.mergeCells('A1:H1');
+       const titleCell = ws.getCell('A1');
+       titleCell.value = `${theme.name}${endDateStr}`;
+       titleCell.font = { bold: true, size: 14 };
+       titleCell.alignment = { horizontal: 'center' };
+       
+       ws.mergeCells('A2:H2');
+       const statsCell = ws.getCell('A2');
+       statsCell.value = `${done}/${total} concluídos · ${points} pontos`;
+       statsCell.font = { italic: true, size: 11 };
+       statsCell.alignment = { horizontal: 'center' };
+       
+       ws.addRow({});
+       
        ws.columns = [
          { header: '#',          key: 'num',    width: 5  },
          { header: 'Checkpoint', key: 'title',  width: 28 },
@@ -212,7 +234,7 @@ router.get('/xlsx', async (req, res) => {
          { header: 'Notas',      key: 'notes',  width: 40 },
          { header: 'Links',      key: 'links',  width: 50 },
        ];
-       ws.getRow(1).font = { bold: true };
+       ws.getRow(4).font = { bold: true };
        theme.checkpoints.forEach((cp, ci) => {
          ws.addRow({
            num:    ci + 1,

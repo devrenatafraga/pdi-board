@@ -16,7 +16,7 @@ const App = (() => {
     _diag('log', 'app.init:start');
     try {
       const data = await API.get('/data');
-      _diag('log', 'app.init:data-loaded', { hasConfig: Boolean(data && data.config) });
+      _diag('log', 'app.init:data-loaded', { hasConfig: Boolean(data?.config) });
       _data = data;
 
       if (!data.config) {
@@ -27,8 +27,8 @@ const App = (() => {
 
       showApp(data);
     } catch (err) {
-      Logger.error('[App] Failed to load data', { message: err && err.message });
-      _diag('error', 'app.init:failed', { message: err && err.message });
+      Logger.error('[App] Failed to load data', { message: err?.message });
+      _diag('error', 'app.init:failed', { message: err?.message });
       const loginScreen = document.getElementById('login-screen');
       if (loginScreen) {
         loginScreen.classList.remove('hidden');
@@ -82,7 +82,7 @@ const App = (() => {
     const btn = document.querySelector(`.nav-btn[data-frame="${frameId}"]`);
     if (btn) btn.classList.add('active');
 
-    if (frameId && frameId.startsWith('board-') && typeof Board !== 'undefined' && typeof Board.redrawVisiblePath === 'function') {
+    if (frameId?.startsWith('board-') && typeof Board !== 'undefined' && typeof Board.redrawVisiblePath === 'function') {
       // Draw after frame becomes visible to avoid collapsed geometry.
       requestAnimationFrame(() => Board.redrawVisiblePath(frameId));
     }
@@ -94,7 +94,7 @@ const App = (() => {
     const saved = localStorage.getItem('pdi-theme') || 'dark';
     applyTheme(saved);
     btn.onclick = () => {
-      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const current = document.documentElement.dataset.theme || 'dark';
       const next = current === 'dark' ? 'light' : 'dark';
       applyTheme(next);
       localStorage.setItem('pdi-theme', next);
@@ -102,9 +102,19 @@ const App = (() => {
   }
 
   function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.dataset.theme = theme;
     const btn = document.getElementById('btn-theme-toggle');
     if (btn) btn.textContent = theme === 'dark' ? '🌙' : '☀️';
+  }
+
+  function calculateDuration(startDate, endDate) {
+    if (!startDate || !endDate) return null;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffMs = end - start;
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    const diffMonths = Math.round(diffDays / 30);
+    return diffMonths > 0 ? diffMonths : null;
   }
 
   function renderInstructions(config) {
@@ -112,6 +122,8 @@ const App = (() => {
     if (!el) return;
 
     const totalCps = config.themes.reduce((s, t) => s + t.checkpoints.length, 0);
+    const themeDurations = config.themes.map(t => calculateDuration(config.startDate, t.endDate));
+    const allThemesHaveDates = config.themes.every((t, i) => themeDurations[i] !== null);
 
     el.innerHTML = `
       <div class="instructions-wrapper">
@@ -121,9 +133,8 @@ const App = (() => {
         <div class="card instructions-card">
           <div class="card-title">��️ Como funciona o Board</div>
           <ul class="instructions-list">
-            <li>O PDI está dividido em <strong>${config.themes.length} tema${config.themes.length !== 1 ? 's' : ''}</strong>, cada um com <strong>4 meses</strong> de duração</li>
-            <li>Cada tema possui <strong>8 checkpoints</strong> (2 por mês), registrados nas reuniões quinzenais de 1:1</li>
-            <li>Total: <strong>${totalCps} checkpoints</strong> ao longo do período</li>
+            <li>O PDI está dividido em <strong>${config.themes.length} tema${config.themes.length !== 1 ? 's' : ''}</strong>${allThemesHaveDates ? ' com durações personalizadas' : ''}</li>
+            <li>Total: <strong>${totalCps} checkpoints</strong> distribuídos entre os temas</li>
             <li>Arraste o peão pelas casas conforme avança nos checkpoints</li>
             <li>Clique em qualquer casa para atualizar status, pontos e notas</li>
           </ul>
@@ -132,16 +143,21 @@ const App = (() => {
         <div class="card instructions-card">
           <div class="card-title">🎨 Trilhas do Tabuleiro</div>
           <div class="legend-grid">
-            ${config.themes.map((t, i) => `
+            ${config.themes.map((t, i) => {
+              const duration = themeDurations[i];
+              const durationText = duration ? ` · ${duration} mês${duration !== 1 ? 'es' : ''}` : '';
+              const cpCount = t.checkpoints.length;
+              return `
               <div class="legend-item">
                 <div class="legend-icon">
                   <span class="theme-dot-lg" style="background:${t.color}"></span>
                 </div>
                 <div class="legend-text">
                   <strong>${t.name}</strong>
-                  <span>Tema ${i+1} · 8 checkpoints</span>
+                  <span>Tema ${i+1} · ${cpCount} checkpoint${cpCount !== 1 ? 's' : ''}${durationText}</span>
                 </div>
-              </div>`).join('')}
+              </div>`;
+            }).join('')}
           </div>
         </div>
 

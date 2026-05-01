@@ -79,6 +79,7 @@ router.get('/data', async (req, res) => {
           name: t.name,
           color: t.color,
           tokenPosition: t.token_position,
+          endDate: t.end_date,
           checkpoints: checkpoints.map(normalizeCheckpoint),
         };
       })
@@ -101,8 +102,8 @@ router.get('/data', async (req, res) => {
     });
   } catch (err) {
     logger.error('GET /data failed', {
-      message: err && err.message,
-      stack: err && err.stack,
+      message: err?.message,
+      stack: err?.stack,
     });
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -132,7 +133,7 @@ router.put('/config', async (req, res) => {
     // Recreate themes and checkpoints from the incoming payload.
     for (let i = 0; i < themes.length; i++) {
       const t = themes[i];
-      const theme = await themeRepo.create(pdi.id, { name: t.name, color: t.color, position: i });
+      const theme = await themeRepo.create(pdi.id, { name: t.name, color: t.color, position: i, endDate: t.endDate });
       await checkpointRepo.bulkCreate(theme.id, t.checkpoints);
     }
 
@@ -149,11 +150,12 @@ router.put('/config', async (req, res) => {
 // PUT /api/themes/:id
 router.put('/themes/:id', async (req, res) => {
   try {
-    const { name, color, tokenPosition } = req.body;
+    const { name, color, tokenPosition, endDate } = req.body;
     const theme = await themeRepo.update(req.params.id, {
       name,
       color,
       token_position: tokenPosition,
+      end_date: endDate,
     });
     if (!theme) return res.status(404).json({ error: 'Theme not found' });
     res.json({ ok: true });

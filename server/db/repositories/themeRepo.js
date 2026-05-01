@@ -14,16 +14,16 @@ async function findById(id) {
   return rows[0] || null;
 }
 
-async function create(pdiId, { name, color, position }) {
+async function create(pdiId, { name, color, position, endDate }) {
   const { rows } = await pool.query(
-    'INSERT INTO themes (pdi_id, name, color, position) VALUES ($1, $2, $3, $4) RETURNING *',
-    [pdiId, name, color, position ?? 0]
+    'INSERT INTO themes (pdi_id, name, color, position, end_date) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+    [pdiId, name, color, position ?? 0, endDate ?? null]
   );
   return rows[0];
 }
 
 async function update(id, fields) {
-  const allowed = ['name', 'color', 'position', 'token_position'];
+  const allowed = ['name', 'color', 'position', 'token_position', 'end_date'];
   const { sets, values } = buildUpdateQuery(fields, allowed);
   if (!sets.length) return findById(id);
   values.push(id);

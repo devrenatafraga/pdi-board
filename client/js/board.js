@@ -38,12 +38,15 @@ const Board = (() => {
     const totalPoints = theme.checkpoints.reduce((s, c) => s + (c.points || 0), 0);
     const pct = totalCps ? Math.round(doneCount / totalCps * 100) : 0;
 
+    const endDateDisplay = theme.endDate ? `Fim: ${formatDate(theme.endDate)} · ` : '';
+
     container.innerHTML = `
       <div class="board-header">
         <div>
           <h2><span class="board-theme-dot" style="background:${theme.color}"></span>${theme.name}</h2>
-          <p class="board-subtitle">${totalCps} checkpoints · Início: ${formatDate(config.startDate)}</p>
+          <p class="board-subtitle">${totalCps} checkpoints · Início: ${formatDate(config.startDate)} · ${endDateDisplay}Gerado: ${new Date().toLocaleDateString('pt-BR')}</p>
         </div>
+        <button class="btn btn-ghost btn-sm" id="edit-theme-btn-${themeIndex}" title="Editar tema">⚙️</button>
       </div>
       <div class="board-stats">
         <div class="stat-card">
@@ -71,6 +74,11 @@ const Board = (() => {
 
     // Draw after layout so geometry is available when frame becomes visible.
     requestAnimationFrame(() => drawTrackPath(themeIndex));
+
+    const editBtn = document.getElementById(`edit-theme-btn-${themeIndex}`);
+    if (editBtn) {
+      editBtn.onclick = () => openThemeModal(theme, themeIndex, config);
+    }
 
     container.querySelectorAll('.square[data-cp-id]').forEach(el => {
       el.addEventListener('click', () => {
@@ -298,6 +306,62 @@ const Board = (() => {
           ${dotsHtml}
         </div>
       </div>`;
+  }
+
+  function openThemeModal(theme, themeIndex, config) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width:400px">
+        <div class="modal-header">
+          <h2>Editar Tema</h2>
+          <button class="modal-close-btn">✕</button>
+        </div>
+        <div class="form-group">
+          <label>Nome do Tema</label>
+          <input type="text" id="theme-name-edit" value="${theme.name}" />
+        </div>
+        <div class="form-group">
+          <label>Cor</label>
+          <input type="color" id="theme-color-edit" value="${theme.color}" />
+        </div>
+        <div class="form-group">
+          <label>Data Final (opcional)</label>
+          <input type="date" id="theme-end-date-edit" value="${theme.endDate || ''}" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost btn-sm" id="theme-modal-cancel">Cancelar</button>
+          <button class="btn btn-primary" id="theme-modal-save" style="background:${theme.color}">💾 Salvar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const closeModal = () => modal.remove();
+
+    document.querySelector('.modal-close-btn', modal).onclick = closeModal;
+    document.getElementById('theme-modal-cancel').onclick = closeModal;
+
+    document.getElementById('theme-modal-save').onclick = async () => {
+      const newName = document.getElementById('theme-name-edit').value.trim() || theme.name;
+      const newColor = document.getElementById('theme-color-edit').value;
+      const newEndDate = document.getElementById('theme-end-date-edit').value;
+
+      await API.put(`/themes/${theme.id}`, {
+        name: newName,
+        color: newColor,
+        endDate: newEndDate,
+      });
+
+      closeModal();
+      const data = await API.get('/data');
+      App.setData(data);
+      renderBoard(themeIndex, data.config);
+      Scoreboard.render(data);
+      Dashboard.render(data);
+    };
+
+    modal.onclick = e => { if (e.target === modal) closeModal(); };
   }
 
   function openCheckpointModal(cp, theme, themeIndex, config) {
