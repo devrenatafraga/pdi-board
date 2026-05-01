@@ -24,6 +24,18 @@ function normalizeCheckpoint(cp) {
   };
 }
 
+// Shape one-on-one data for the frontend contract.
+function normalizeOneOnOne(o) {
+  return {
+    id: o.id,
+    date: o.date,
+    notes: o.notes,
+    themeId: o.theme_id,
+    checkpointId: o.checkpoint_id,
+    points: o.points ?? 0,
+  };
+}
+
 async function getActivePdi(userId) {
   const pdis = await pdiRepo.findByUser(userId);
   return pdis[0] || null;
@@ -84,7 +96,7 @@ router.get('/data', async (req, res) => {
         startDate: pdi.start_date,
         themes: themesWithCheckpoints,
       },
-      oneOnOnes,
+      oneOnOnes: oneOnOnes.map(normalizeOneOnOne),
       evidence,
     });
   } catch (err) {
@@ -182,7 +194,7 @@ router.post('/oneOnOnes', async (req, res) => {
     if (!pdi) return;
 
     const entry = await oneOnOneRepo.create(pdi.id, req.body);
-    res.status(201).json(entry);
+    res.status(201).json(normalizeOneOnOne(entry));
   } catch (err) {
     logger.error('POST /oneOnOnes failed', {
       message: err && err.message,
