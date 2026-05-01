@@ -35,8 +35,15 @@ app.use(express.json());
 // Request logging for debugging (development only)
 app.use(requestLogger);
 
+// Get authorized parties from environment or use defaults
+const authorizedParties = process.env.AUTHORIZED_PARTIES
+  ? process.env.AUTHORIZED_PARTIES.split(',').map(p => p.trim())
+  : isProduction 
+    ? [] // In production, authorizedParties should be explicitly set via env var
+    : ['http://localhost:3000', 'http://localhost:5000'];
+
 // Attach Clerk auth context to every request (does not block unauthenticated requests)
-app.use(ClerkExpressWithAuth());
+app.use(ClerkExpressWithAuth({ authorizedParties }));
 
 // Serve index.html with CLERK_PUBLISHABLE_KEY injected (must come BEFORE express.static
 // so the route handler intercepts GET / instead of the static middleware serving it raw)
